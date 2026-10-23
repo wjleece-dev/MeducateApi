@@ -8,9 +8,9 @@
 		<ProjectReference Include="..\Meducate.Domain\Meducate.Domain.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Hangfire.Core" Version="1.8.24" />
+		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
 		<PackageReference Include="Hangfire.Console" Version="1.4.3" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
 	</ItemGroup>
 </Project>
