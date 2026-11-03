@@ -241,13 +241,14 @@ internal sealed class TopicBackfillService(
     // match it) and their correct name, restored from OriginalName once the mistake is found.
     // Only corrects if the current name still matches the wrong value, so this is idempotent.
     // Order matters when a correction's target name is itself occupied by another wrong name
-    // being corrected in the same pass (see COVID-19 below) — earlier entries free up names
+    // being corrected in the same pass — earlier entries free up names
     // that later entries need, and each correction is saved individually so later ones see it.
-    private static readonly List<(string WrongName, string CorrectName)> NameCorrections =
-    [
-        ("COVID-19", "COVID-19 Testing"),
-        ("COVID-19 Vaccines", "COVID-19"),
-    ];
+    // Currently empty: the COVID-19 disease/vaccine/testing mix-up it was added for is fixed
+    // (three separate topics, each correctly typed). Entries left in place after a fix only log
+    // "target name already in use" warnings every night and are a latent hazard -- e.g. if the
+    // COVID-19 Testing topic were ever removed, a stale rule would rename the real COVID-19
+    // disease topic to it. Add an entry when a merge goes wrong, remove it once it has landed.
+    private static readonly List<(string WrongName, string CorrectName)> NameCorrections = [];
 
     internal async Task<int> BackfillBadNamesAsync(CancellationToken ct, PerformContext? console = null)
     {
