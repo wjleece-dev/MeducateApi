@@ -40,6 +40,7 @@ internal static class InfrastructureServiceRegistration
         services.AddScoped<ITopicRepository, TopicRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOrganisationRepository, OrganisationRepository>();
+        services.AddScoped<IWaitlistRepository, WaitlistRepository>();
         services.AddScoped<TopicWriteRepository>();
         services.AddScoped<ITopicWriteRepository>(sp => sp.GetRequiredService<TopicWriteRepository>());
         services.AddScoped<ITopicQueryRepository>(sp => sp.GetRequiredService<TopicWriteRepository>());

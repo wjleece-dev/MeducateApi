@@ -22,6 +22,9 @@ internal static class InternalEndpoints
         app.MapGet("/internal/topics/sample",
             (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, int count = 10, int? skip = null, CancellationToken ct = default)
                 => HandleTopicSample(http, queryRepo, config, loggerFactory, count, skip, ct));
+        app.MapGet("/internal/waitlist",
+            (HttpContext http, IWaitlistRepository waitlist, IConfiguration config, ILoggerFactory loggerFactory, int take = 50, int skip = 0, CancellationToken ct = default)
+                => HandleWaitlistList(http, waitlist, config, loggerFactory, take, skip, ct));
         app.MapGet("/internal/topics/fact-check",
             (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, int count = 5, int? skip = null, int rawSourceChars = 3000, CancellationToken ct = default)
                 => HandleTopicFactCheck(http, queryRepo, config, loggerFactory, count, skip, rawSourceChars, ct));
@@ -150,6 +153,35 @@ internal static class InternalEndpoints
         });
 
         return Results.Ok(new { total, skip = resolvedSkip, count = topics.Count, topics = result });
+    }
+
+    private static async Task<IResult> HandleWaitlistList(
+        HttpContext http,
+        IWaitlistRepository waitlist,
+        IConfiguration config,
+        ILoggerFactory loggerFactory,
+        int take,
+        int skip,
+        CancellationToken ct)
+    {
+        var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+
+        var authError = CheckToken(http, config, logger, "waitlist");
+        if (authError is not null) return authError;
+
+        take = Math.Clamp(take, 1, 200);
+        skip = Math.Max(skip, 0);
+
+        var total = await waitlist.CountAsync(ct);
+        var entries = await waitlist.ListAsync(skip, take, ct);
+
+        return Results.Ok(new
+        {
+            total,
+            skip,
+            count = entries.Count,
+            entries = entries.Select(e => new { e.Email, e.CreatedAt }),
+        });
     }
 
     private static async Task<IResult> HandleTopicFactCheck(

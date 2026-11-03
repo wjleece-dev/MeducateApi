@@ -65,6 +65,9 @@ internal static class ApiServiceRegistration
                     ? (int)retryAfter.TotalSeconds
                     : 60;
 
+                var isWaitlist = context.HttpContext.GetEndpoint()?.Metadata
+                    .GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName == ApiConstants.WaitlistRateLimitPolicy;
+
                 context.HttpContext.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
                 context.HttpContext.Response.ContentType = "application/problem+json";
 
@@ -73,7 +76,9 @@ internal static class ApiServiceRegistration
                     type = "https://tools.ietf.org/html/rfc6585#section-4",
                     title = "Too Many Requests",
                     status = StatusCodes.Status429TooManyRequests,
-                    detail = $"Rate limit exceeded: 60 requests per minute per API key. Retry in {retryAfterSeconds} seconds.",
+                    detail = isWaitlist
+                        ? $"Too many waitlist requests from this address. Retry in {retryAfterSeconds} seconds."
+                        : $"Rate limit exceeded: 60 requests per minute per API key. Retry in {retryAfterSeconds} seconds.",
                 }, ct);
             };
 
@@ -97,6 +102,18 @@ internal static class ApiServiceRegistration
                             AutoReplenishment = true
                         });
                 });
+
+            // Waitlist: 5 submissions per hour per client address. Stacks with the global limiter.
+            options.AddPolicy(ApiConstants.WaitlistRateLimitPolicy, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: $"waitlist:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromHours(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true
+                    }));
         });
 
         // CORS

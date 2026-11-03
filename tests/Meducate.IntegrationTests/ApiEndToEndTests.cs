@@ -111,6 +111,118 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
         Assert.False(string.IsNullOrWhiteSpace(keyDoc.RootElement.GetProperty("apiKey").GetString()));
     }
 
+    // --- Waitlist -----------------------------------------------------------------------------
+    // Each test uses its own X-Forwarded-For address: the waitlist rate limit (5/hour) is
+    // per client address, and these tests would otherwise share one partition and trip it.
+
+    private HttpClient WaitlistClient(string clientAddress)
+    {
+        var client = NewClientWithCsrfHeader(factory);
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", clientAddress);
+        return client;
+    }
+
+    private static string FormRenderedAgo(TimeSpan age) =>
+        DateTimeOffset.UtcNow.Add(-age).ToUnixTimeMilliseconds().ToString();
+
+    private static object WaitlistBody(string email, string? website = null, string? timestamp = null) =>
+        new { email, website, timestamp = timestamp ?? FormRenderedAgo(TimeSpan.FromSeconds(30)) };
+
+    private async Task<List<string>> StoredWaitlistEmailsAsync()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/internal/waitlist?take=200");
+        request.Headers.Add("X-Internal-Token", MeducateApiFactory.InternalToken);
+
+        var response = await NewClient(factory).SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.GetProperty("entries").EnumerateArray()
+            .Select(e => e.GetProperty("email").GetString()!)
+            .ToList();
+    }
+
+    [Fact]
+    public async Task Waitlist_StoresSignup_AndDoesNotListTheSameAddressTwice()
+    {
+        var client = WaitlistClient("10.20.0.1");
+        var email = $"wl-{Guid.NewGuid():N}@example.com";
+
+        var first = await client.PostAsJsonAsync("/api/v1/waitlist", WaitlistBody(email));
+        var again = await client.PostAsJsonAsync("/api/v1/waitlist", WaitlistBody(email.ToUpperInvariant()));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(1, (await StoredWaitlistEmailsAsync()).Count(e => e == email));
+    }
+
+    [Fact]
+    public async Task Waitlist_FilledHoneypot_LooksSuccessfulButStoresNothing()
+    {
+        var email = $"wl-bot-{Guid.NewGuid():N}@example.com";
+
+        var response = await WaitlistClient("10.20.0.2").PostAsJsonAsync("/api/v1/waitlist", WaitlistBody(email, website: "http://spam.example"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(email, await StoredWaitlistEmailsAsync());
+    }
+
+    [Fact]
+    public async Task Waitlist_SubmittedImpossiblyFast_LooksSuccessfulButStoresNothing()
+    {
+        var email = $"wl-fast-{Guid.NewGuid():N}@example.com";
+
+        var response = await WaitlistClient("10.20.0.3").PostAsJsonAsync("/api/v1/waitlist",
+            WaitlistBody(email, timestamp: FormRenderedAgo(TimeSpan.FromMilliseconds(200))));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(email, await StoredWaitlistEmailsAsync());
+    }
+
+    [Fact]
+    public async Task Waitlist_WithoutRenderTimestamp_IsRejected()
+    {
+        var response = await WaitlistClient("10.20.0.4").PostAsJsonAsync("/api/v1/waitlist",
+            new { email = $"wl-nots-{Guid.NewGuid():N}@example.com" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("not-an-email")]
+    [InlineData("a@b")]
+    [InlineData("two words@example.com")]
+    public async Task Waitlist_InvalidEmail_IsRejected(string email)
+    {
+        var response = await WaitlistClient("10.20.0.5").PostAsJsonAsync("/api/v1/waitlist", WaitlistBody(email));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Waitlist_SixthSubmissionInAnHourFromOneAddress_IsRateLimited()
+    {
+        var client = WaitlistClient("10.20.0.99");
+
+        for (var i = 0; i < 5; i++)
+        {
+            var ok = await client.PostAsJsonAsync("/api/v1/waitlist", WaitlistBody($"wl-rl{i}-{Guid.NewGuid():N}@example.com"));
+            Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        }
+
+        var limited = await client.PostAsJsonAsync("/api/v1/waitlist", WaitlistBody($"wl-rl6-{Guid.NewGuid():N}@example.com"));
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+    }
+
+    [Fact]
+    public async Task InternalWaitlist_WithoutToken_IsUnauthorized()
+    {
+        var response = await NewClient(factory).GetAsync("/internal/waitlist");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private static string? ExtractSetCookieValue(HttpResponseMessage response, string cookieName)
     {
         if (!response.Headers.TryGetValues("Set-Cookie", out var cookies))

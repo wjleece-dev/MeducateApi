@@ -12,6 +12,8 @@ internal static class ApiConstants
     internal const int FreshAuthWindowSeconds = 600;
     internal const double UsageWarningThreshold = 0.80;
 
+    internal const string WaitlistRateLimitPolicy = "waitlist";
+
     public const string DemoKeyId = "d3m0000000000000000000000000key1";
     public const string DemoSecret = "MEDUCATE_PUBLIC_DEMO_2026";
     public const string DemoRawKey = DemoKeyId + "." + DemoSecret;

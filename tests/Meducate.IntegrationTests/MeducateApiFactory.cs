@@ -11,6 +11,8 @@ public sealed class MeducateApiFactory : WebApplicationFactory<Program>, IAsyncL
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
 
+    public const string InternalToken = "integration-internal-token";
+
     public FakeEmailService EmailService { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -22,6 +24,8 @@ public sealed class MeducateApiFactory : WebApplicationFactory<Program>, IAsyncL
         // Without this, the app immediately picks up and executes real background
         // jobs against real external APIs the moment the test host boots.
         builder.UseSetting("Hangfire:DisableServer", "true");
+        // Lets tests read stored waitlist signups back through /internal/waitlist.
+        builder.UseSetting("Internal:TriggerToken", InternalToken);
 
         builder.ConfigureServices(services =>
         {
