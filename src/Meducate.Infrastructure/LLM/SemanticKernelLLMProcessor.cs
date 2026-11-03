@@ -459,7 +459,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             "Procedure" or "Diagnostic Test" =>
                 $"""
                 This topic is a {topicType.ToUpperInvariant()}. Interpret fields accordingly:
-                - "actions": list what conditions it treats or tests for, as stated in the text. Only the purpose of the procedure itself: never aftercare, follow-up medicines, recovery or lifestyle advice
+                - "actions": the conditions or problems this procedure treats or tests for, each a short noun phrase (e.g. "Chest pain from blocked coronary arteries", "Colorectal cancer"). Not steps of the procedure, not medicines, not aftercare or lifestyle advice
                 - "observations": list every risk or complication the text names, one item per risk (including allergic reactions); never merge or drop any when the text gives an explicit list, otherwise []
                 - "factors": list reasons the procedure is needed if stated in the text, otherwise []
                 Prefer items from the source text. See FALLBACK FOR SPARSE SOURCES
