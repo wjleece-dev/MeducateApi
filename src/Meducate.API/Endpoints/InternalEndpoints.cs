@@ -25,6 +25,9 @@ internal static class InternalEndpoints
         app.MapGet("/internal/waitlist",
             (HttpContext http, IWaitlistRepository waitlist, IConfiguration config, ILoggerFactory loggerFactory, int take = 50, int skip = 0, CancellationToken ct = default)
                 => HandleWaitlistList(http, waitlist, config, loggerFactory, take, skip, ct));
+        app.MapPost("/internal/topics/reprocess",
+            (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, string[] type, CancellationToken ct)
+                => HandleTopicReprocess(http, writeRepo, config, loggerFactory, type, ct));
         app.MapGet("/internal/topics/fact-check",
             (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, int count = 5, int? skip = null, int rawSourceChars = 3000, CancellationToken ct = default)
                 => HandleTopicFactCheck(http, queryRepo, config, loggerFactory, count, skip, rawSourceChars, ct));
@@ -153,6 +156,29 @@ internal static class InternalEndpoints
         });
 
         return Results.Ok(new { total, skip = resolvedSkip, count = topics.Count, topics = result });
+    }
+
+    // Flags every topic of the given type(s) for LLM reprocessing on the next refresh run.
+    // Use after changing extraction prompts, since unchanged sources are otherwise never re-extracted.
+    private static async Task<IResult> HandleTopicReprocess(
+        HttpContext http,
+        ITopicWriteRepository writeRepo,
+        IConfiguration config,
+        ILoggerFactory loggerFactory,
+        string[] type,
+        CancellationToken ct)
+    {
+        var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+
+        var authError = CheckToken(http, config, logger, "reprocess");
+        if (authError is not null) return authError;
+
+        if (type.Length == 0)
+            return Results.Problem("Pass at least one ?type=.", statusCode: StatusCodes.Status400BadRequest);
+
+        var flagged = await writeRepo.FlagForReprocessingAsync(type, ct);
+        logger.LogInformation("Internal: flagged {Count} topics of type(s) {Types} for reprocessing", flagged, string.Join(", ", type));
+        return Results.Ok(new { flagged, types = type });
     }
 
     private static async Task<IResult> HandleWaitlistList(

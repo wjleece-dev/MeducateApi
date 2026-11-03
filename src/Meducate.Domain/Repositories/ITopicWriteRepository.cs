@@ -11,4 +11,5 @@ internal interface ITopicWriteRepository
     void RevertChanges(HealthTopic topic);
     void RevertChanges(IEnumerable<HealthTopic> topics);
     Task AddSeenTopicsAsync(IEnumerable<SeenTopic> topics, CancellationToken ct);
+    Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, CancellationToken ct);
 }

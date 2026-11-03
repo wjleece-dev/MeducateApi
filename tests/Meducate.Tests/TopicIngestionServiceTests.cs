@@ -422,6 +422,8 @@ public class TopicIngestionServiceTests
         public void RevertChanges(HealthTopic topic) => Reverted.Add(topic);
         public void RevertChanges(IEnumerable<HealthTopic> topics) => Reverted.AddRange(topics);
 
+        public Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, CancellationToken ct) => Task.FromResult(0);
+
         public Task AddSeenTopicsAsync(IEnumerable<SeenTopic> topics, CancellationToken ct)
         {
             SeenTopicsAdded.AddRange(topics);
