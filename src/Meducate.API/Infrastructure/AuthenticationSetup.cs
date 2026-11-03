@@ -23,7 +23,9 @@ internal static class AuthenticationSetup
                 o.LoginPath = "/register";
                 o.AccessDeniedPath = "/register";
 
-                o.ExpireTimeSpan = TimeSpan.FromHours(8);
+                // 3 days idle (was 8h, which logged people out overnight); the 7-day absolute cap
+                // (ApiConstants.MaxAuthAgeSeconds) still bounds total session age.
+                o.ExpireTimeSpan = TimeSpan.FromDays(3);
                 o.Cookie.MaxAge = TimeSpan.FromDays(7);
                 o.SlidingExpiration = true;
 
@@ -37,7 +39,8 @@ internal static class AuthenticationSetup
                             return Task.CompletedTask;
                         }
 
-                        ctx.Response.Redirect(ctx.RedirectUri);
+                        // LoginPath is a PathString and cannot carry a query, so target sign-in mode here.
+                        ctx.Response.Redirect("/register?mode=signin");
                         return Task.CompletedTask;
                     },
 
@@ -49,7 +52,7 @@ internal static class AuthenticationSetup
                             return Task.CompletedTask;
                         }
 
-                        ctx.Response.Redirect(ctx.RedirectUri);
+                        ctx.Response.Redirect("/register?mode=signin");
                         return Task.CompletedTask;
                     },
 

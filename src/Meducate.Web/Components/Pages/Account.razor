@@ -105,7 +105,7 @@
         var hasCookie = HttpContextAccessor.HttpContext?.Request.Cookies.ContainsKey("meducateapi_auth") ?? false;
         if (!hasCookie)
         {
-            Nav.NavigateTo("/register", replace: true);
+            Nav.NavigateTo("/register?mode=signin", replace: true);
             return;
         }
 
@@ -113,7 +113,7 @@
 
         if (_userStatus is null)
         {
-            Nav.NavigateTo("/register", replace: true);
+            Nav.NavigateTo("/register?mode=signin", replace: true);
             return;
         }
 
