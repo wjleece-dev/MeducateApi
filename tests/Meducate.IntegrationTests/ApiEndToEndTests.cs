@@ -48,6 +48,20 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
     }
 
     [Fact]
+    public async Task UnknownTopic_Returns404WithGuidanceAndSuggestions()
+    {
+        var client = NewClient(factory);
+        client.DefaultRequestHeaders.Add("X-Api-Key", ApiConstants.DemoRawKey);
+
+        var response = await client.GetAsync("/api/v1/topics/zzz-not-a-topic");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Contains("/topics/search", doc.RootElement.GetProperty("detail").GetString());
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("suggestions").ValueKind);
+    }
+
+    [Fact]
     public async Task Swagger_HealthTopicSchema_UsesWireFieldNames()
     {
         var json = await NewClient(factory).GetStringAsync("/swagger/v1/swagger.json");

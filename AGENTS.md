@@ -76,7 +76,7 @@ Magic-link email only, no passwords.
 ```
 X-Api-Key: d3m0000000000000000000000000key1.MEDUCATE_PUBLIC_DEMO_2026
 ```
-Limit: 50 requests/day.
+Limit: 300 requests/day.
 
 ---
 

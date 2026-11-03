@@ -81,7 +81,8 @@ internal sealed class ApiKeyMiddleware(RequestDelegate next, IMemoryCache cache,
         if (client.DailyLimit > 0 && usageCount >= client.DailyLimit)
         {
             context.Response.Headers.RetryAfter = "86400";
-            await ProblemResponse.WriteAsync(context, StatusCodes.Status429TooManyRequests, "Rate limit exceeded.");
+            await ProblemResponse.WriteAsync(context, StatusCodes.Status429TooManyRequests,
+                "Daily request limit reached. Resets at midnight UTC. Get a free key with 1,000 requests/day at https://meducateapi.com/register.");
             return;
         }
 

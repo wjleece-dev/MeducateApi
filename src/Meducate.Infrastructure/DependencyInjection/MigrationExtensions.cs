@@ -20,7 +20,7 @@ public static class MigrationExtensions
     {
         const string demoKeyId = "d3m0000000000000000000000000key1";
         const string demoSecret = "MEDUCATE_PUBLIC_DEMO_2026";
-        const int demoDailyLimit = 50;
+        const int demoDailyLimit = 300;
 
         var existing = await db.ApiClients.FirstOrDefaultAsync(c => c.KeyId == demoKeyId);
 

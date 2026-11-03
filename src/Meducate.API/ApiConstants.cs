@@ -17,5 +17,5 @@ internal static class ApiConstants
     public const string DemoKeyId = "d3m0000000000000000000000000key1";
     public const string DemoSecret = "MEDUCATE_PUBLIC_DEMO_2026";
     public const string DemoRawKey = DemoKeyId + "." + DemoSecret;
-    public const int DemoDailyLimit = 50;
+    public const int DemoDailyLimit = 300;
 }
