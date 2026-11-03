@@ -92,7 +92,7 @@
             <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
   "https://api.meducateapi.com/api/v1/topics/Chest%20Pain"</code></pre>
 
-            <p>A symptom topic's <code>observations</code>, <code>factors</code>, and <code>actions</code> fields map cleanly onto a reference page: how the symptom typically presents, what's commonly associated with or causes it, and general management or when-to-seek-care guidance. Render those three lists under their own headings and you have a page that reads like a proper reference entry, not a wall of API JSON.</p>
+            <p>A symptom topic carries three lists, <code>relatedSymptoms</code>, <code>associatedConditions</code>, and <code>management</code>, that map cleanly onto a reference page: how the symptom typically presents, what's commonly associated with or causes it, and general management or when-to-seek-care guidance. (The list names vary by topic type; see the <a href="/health-topics-api">health topics API reference</a>.) Render those three lists under their own headings and you have a page that reads like a proper reference entry, not a wall of API JSON.</p>
 
             <hr>
 

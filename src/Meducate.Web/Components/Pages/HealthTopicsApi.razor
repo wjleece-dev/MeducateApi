@@ -46,7 +46,30 @@
                 <li><strong>Description:</strong> a structured summary synthesised from authoritative sources</li>
                 <li><strong>Type:</strong> classification of the topic kind &mdash; Disease, Disorder, Syndrome, Symptom, Mental Health, Drug, Procedure, Diagnostic Test, Vaccine, Anatomy, or Nutrient</li>
                 <li><strong>Category:</strong> the body-system or content-type category the topic belongs to (e.g. Respiratory System, Mental & Behavioral, Circulatory System)</li>
+                <li><strong>Three lists:</strong> what the topic is about, named by its type (see the table below)</li>
+                <li><strong>ICD-11 code and title</strong> where a confident match exists, plus <strong>citations</strong>, <strong>tags</strong>, <code>lastUpdated</code> and <code>version</code></li>
             </ul>
+
+            <h3 class="fw-semibold mt-3">List field names by topic type</h3>
+            <p>Each topic returns three lists. Their JSON field names depend on the topic type, so a drug&rsquo;s side effects and a disease&rsquo;s symptoms use different keys:</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr><th>Topic type</th><th>List 1</th><th>List 2</th><th>List 3</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Disease, Disorder, Syndrome, Mental Health</td><td><code>symptoms</code></td><td><code>causes</code></td><td><code>treatments</code></td></tr>
+                        <tr><td>Symptom</td><td><code>relatedSymptoms</code></td><td><code>associatedConditions</code></td><td><code>management</code></td></tr>
+                        <tr><td>Drug</td><td><code>sideEffects</code></td><td><code>contraindications</code></td><td><code>indications</code></td></tr>
+                        <tr><td>Procedure</td><td><code>risks</code></td><td><code>reasons</code></td><td><code>usedFor</code></td></tr>
+                        <tr><td>Diagnostic Test</td><td><code>risks</code></td><td><code>reasons</code></td><td><code>testsFor</code></td></tr>
+                        <tr><td>Vaccine</td><td><code>sideEffects</code></td><td><code>contraindications</code></td><td><code>prevents</code></td></tr>
+                        <tr><td>Anatomy</td><td><code>associatedConditions</code></td><td><code>riskFactors</code></td><td><code>relatedTreatments</code></td></tr>
+                        <tr><td>Nutrient</td><td><code>deficiencySymptoms</code></td><td><code>dietarySources</code></td><td><code>healthBenefits</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted small">A list can be empty when the source material doesn&rsquo;t cover it, for example a routine test with no stated risks. Check the <code>topicType</code> field first, then read the matching names.</p>
 
             <hr>
 
@@ -119,7 +142,7 @@
             <p>To retrieve a specific topic by name:</p>
 
             <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
-  "https://api.meducateapi.com/api/v1/topics/diabetes"</code></pre>
+  "https://api.meducateapi.com/api/v1/topics/asthma"</code></pre>
 
             <p>See the <a href="/docs">full API documentation</a> for all available endpoints, query parameters, and response schemas.</p>
 

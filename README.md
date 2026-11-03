@@ -118,10 +118,15 @@ graph LR
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/topics` | List all topics (paginated, filterable by type) |
-| `GET` | `/api/v1/topics/search` | Search topics by name |
+| `GET` | `/api/v1/topics` | List all topics (paginated, filterable by type and category) |
+| `GET` | `/api/v1/topics/search` | Search topics by name (same type and category filters) |
 | `GET` | `/api/v1/topics/{name}` | Get a single topic by exact name |
-| `GET` | `/api/v1/topics/types` | List available topic types |
+| `GET` | `/api/v1/topics/icd11/{code}` | Get the topic carrying a WHO ICD-11 code |
+| `GET` | `/api/v1/topics/types` | List available topic types, with counts |
+| `GET` | `/api/v1/topics/categories` | List medical categories, with counts |
+| `GET` | `/api/v1/topics/changes?since=` | Topics added or updated since a timestamp, newest first |
+
+A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.json) covers all of these with example parameters and tests (Postman: Import, paste the URL).
 
 ### Auth
 
