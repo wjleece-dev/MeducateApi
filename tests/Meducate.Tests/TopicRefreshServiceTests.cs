@@ -348,7 +348,7 @@ public class TopicRefreshServiceTests
         public void RevertChanges(HealthTopic topic) => Reverted.Add(topic);
         public void RevertChanges(IEnumerable<HealthTopic> topics) => Reverted.AddRange(topics);
         public Task AddSeenTopicsAsync(IEnumerable<SeenTopic> topics, CancellationToken ct) => Task.CompletedTask;
-        public Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, CancellationToken ct) => Task.FromResult(0);
+        public Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, IReadOnlyCollection<string> names, CancellationToken ct) => Task.FromResult(0);
     }
 
     private sealed class FakeTopicRepo : ITopicRepository

@@ -81,6 +81,8 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             - "actions" must contain only interventions applied AFTER the condition is
               present (treatments, management, self-care). Do NOT include general
               prevention advice aimed at people who have not yet developed the condition.
+              Where the type instructions above define "actions" differently (e.g. for a
+              Procedure it is what the procedure treats, not self-care), they take precedence.
             - "citations": include named organisations, guidelines, or studies that
               are explicitly referenced in the text as sources or contributors (e.g.
               "Centers for Disease Control and Prevention", "Mayo Clinic", "WHO",
@@ -154,7 +156,9 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             - "observations", "factors", "actions": concise items traceable to the source text.
               "actions" must contain only interventions applied AFTER the condition is present
               (treatments, management, self-care). Do NOT include prevention advice for people
-              who have not yet developed the condition. Only return [] if the source provides
+              who have not yet developed the condition. Where the type instructions above define
+              "actions" differently (e.g. for a Procedure it is what the procedure treats, not
+              aftercare or self-care), they take precedence. Only return [] if the source provides
               no relevant context at all for a field.
             - "citations": only named organisations or guidelines explicitly referenced in the
               source text. Return [] if none are named.
@@ -175,6 +179,10 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
                topic, or general knowledge added beyond what the source contains.
             5. Inaccurate paraphrasing that changes or reverses the meaning of the source.
             6. Structured field items (observations/factors/actions) not supported by the source.
+            7. Items that the type instructions above exclude from a field (e.g. aftercare or
+               follow-up medicines in a Procedure's "actions"). Remove them.
+            8. Dropped list items. If the source gives an explicit list of risks, complications,
+               side effects or causes, every item in that list must appear in the matching field.
 
             WHAT NOT TO DO:
             - Do NOT change the "name" field.
@@ -452,7 +460,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
                 $"""
                 This topic is a {topicType.ToUpperInvariant()}. Interpret fields accordingly:
                 - "actions": list what conditions it treats or tests for, as stated in the text. Only the purpose of the procedure itself: never aftercare, follow-up medicines, recovery or lifestyle advice
-                - "observations": list every distinct risk or complication named in the text (including allergic reactions), otherwise []
+                - "observations": list every risk or complication the text names, one item per risk (including allergic reactions); never merge or drop any when the text gives an explicit list, otherwise []
                 - "factors": list reasons the procedure is needed if stated in the text, otherwise []
                 Prefer items from the source text. See FALLBACK FOR SPARSE SOURCES
                 if the text is descriptive prose without discrete lists.

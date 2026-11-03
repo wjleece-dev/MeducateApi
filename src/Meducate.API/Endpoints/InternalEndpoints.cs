@@ -26,8 +26,8 @@ internal static class InternalEndpoints
             (HttpContext http, IWaitlistRepository waitlist, IConfiguration config, ILoggerFactory loggerFactory, int take = 50, int skip = 0, CancellationToken ct = default)
                 => HandleWaitlistList(http, waitlist, config, loggerFactory, take, skip, ct));
         app.MapPost("/internal/topics/reprocess",
-            (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, [Microsoft.AspNetCore.Mvc.FromQuery] string[] type, CancellationToken ct)
-                => HandleTopicReprocess(http, writeRepo, config, loggerFactory, type, ct));
+            (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, [Microsoft.AspNetCore.Mvc.FromQuery] string[] type, [Microsoft.AspNetCore.Mvc.FromQuery] string[] name, CancellationToken ct)
+                => HandleTopicReprocess(http, writeRepo, config, loggerFactory, type, name, ct));
         app.MapGet("/internal/topics/fact-check",
             (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, int count = 5, int? skip = null, int rawSourceChars = 3000, CancellationToken ct = default)
                 => HandleTopicFactCheck(http, queryRepo, config, loggerFactory, count, skip, rawSourceChars, ct));
@@ -166,6 +166,7 @@ internal static class InternalEndpoints
         IConfiguration config,
         ILoggerFactory loggerFactory,
         string[] type,
+        string[] name,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
@@ -173,12 +174,12 @@ internal static class InternalEndpoints
         var authError = CheckToken(http, config, logger, "reprocess");
         if (authError is not null) return authError;
 
-        if (type.Length == 0)
-            return Results.Problem("Pass at least one ?type=.", statusCode: StatusCodes.Status400BadRequest);
+        if (type.Length == 0 && name.Length == 0)
+            return Results.Problem("Pass at least one ?type= or ?name=.", statusCode: StatusCodes.Status400BadRequest);
 
-        var flagged = await writeRepo.FlagForReprocessingAsync(type, ct);
-        logger.LogInformation("Internal: flagged {Count} topics of type(s) {Types} for reprocessing", flagged, string.Join(", ", type));
-        return Results.Ok(new { flagged, types = type });
+        var flagged = await writeRepo.FlagForReprocessingAsync(type, name, ct);
+        logger.LogInformation("Internal: flagged {Count} topics (types: {Types}; names: {Names}) for reprocessing", flagged, string.Join(", ", type), string.Join(", ", name));
+        return Results.Ok(new { flagged, types = type, names = name });
     }
 
     private static async Task<IResult> HandleWaitlistList(

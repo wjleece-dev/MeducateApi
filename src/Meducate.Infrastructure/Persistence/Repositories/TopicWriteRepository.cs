@@ -28,12 +28,12 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
             .ToListAsync(ct);
     }
 
-    public async Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, CancellationToken ct)
+    public async Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, IReadOnlyCollection<string> names, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
         // LastSourceRefresh is touched so GetTopicsNeedingReprocessingAsync (2-day cutoff) picks these up
         return await _db.HealthTopics
-            .Where(c => c.TopicType != null && topicTypes.Contains(c.TopicType))
+            .Where(c => (c.TopicType != null && topicTypes.Contains(c.TopicType)) || names.Contains(c.Name))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(c => c.NeedsLlmReprocessing, true)
                 .SetProperty(c => c.LastSourceRefresh, now), ct);
