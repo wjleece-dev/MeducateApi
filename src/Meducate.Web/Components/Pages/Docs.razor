@@ -62,6 +62,8 @@
 
             <p>Source data is reprocessed and summarised <strong>daily</strong> by automated background jobs.</p>
 
+            <p><strong>Coverage:</strong> about 850 topics drawn from MedlinePlus health topics: conditions, symptoms, procedures and tests. Individual drugs are only partly covered (a couple of dozen entries, not a drug database), and Vaccine and Anatomy are small types. <code>GET /api/v1/topics/types</code> shows the live count for each. A name that isn't found returns a 404 with the closest search matches.</p>
+
             <hr>
 
             <h2 class="fw-semibold">Authentication</h2>
@@ -142,7 +144,7 @@ print(response.json())</code></pre>
 
             <ul>
                 <li>In Postman choose <strong>Import</strong> and paste <code>https://meducateapi.com/meducate-api.postman_collection.json</code>, or <a href="/meducate-api.postman_collection.json" download>download the file</a>.</li>
-                <li>Set the <code>apiKey</code> collection variable to your key. It ships with the public demo key, which is shared and capped at 50 requests a day.</li>
+                <li>Set the <code>apiKey</code> collection variable to your key. It ships with the public demo key, which is shared and capped at 300 requests a day.</li>
             </ul>
 
             <hr>
@@ -157,7 +159,7 @@ print(response.json())</code></pre>
                         <input type="text" class="form-control font-monospace" value="@DemoKey" readonly />
                         <button class="btn btn-outline-primary" @onclick="CopyDemoKey">@_copyLabel</button>
                     </div>
-                    <small class="text-muted mt-2 d-block">Shared demo key. 50 requests/day. <a href="/register">Create a free account</a> for 1,000/day.</small>
+                    <small class="text-muted mt-2 d-block">Shared demo key. 300 requests/day. <a href="/register">Create a free account</a> for 1,000/day.</small>
                 </div>
             </div>
 
