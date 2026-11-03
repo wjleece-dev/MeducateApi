@@ -48,6 +48,20 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
     }
 
     [Fact]
+    public async Task Swagger_HealthTopicSchema_UsesWireFieldNames()
+    {
+        var json = await NewClient(factory).GetStringAsync("/swagger/v1/swagger.json");
+        using var doc = JsonDocument.Parse(json);
+        var props = doc.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("HealthTopic").GetProperty("properties");
+
+        foreach (var wire in new[] { "symptoms", "causes", "treatments", "name", "icd11Code" })
+            Assert.True(props.TryGetProperty(wire, out _), $"missing {wire}");
+        foreach (var internalName in new[] { "observations", "factors", "actions" })
+            Assert.False(props.TryGetProperty(internalName, out _), $"unexpected {internalName}");
+    }
+
+    [Fact]
     public async Task MutatingRequest_WithoutCsrfHeaderOrApiKey_IsForbidden()
     {
         var response = await NewClient(factory).PostAsJsonAsync("/api/v1/waitlist", new { email = "csrf-check@example.com" });

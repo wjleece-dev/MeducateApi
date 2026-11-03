@@ -52,6 +52,7 @@ internal static class ApiServiceRegistration
                 }
             });
             c.OperationFilter<SwaggerHeaderOperationFilter>();
+            c.SchemaFilter<HealthTopicSchemaFilter>();
         });
 
         // Rate limiting
