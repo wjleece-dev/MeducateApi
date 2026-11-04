@@ -21,6 +21,8 @@ internal sealed record BackupKey(string Name, int DailyLimit, bool IsActive, Dat
 
 internal sealed record BackupWaitlistEntry(string Email, DateTime CreatedAt);
 
+internal sealed record ItemEdit(string Name, string Field, string Item, string? ReplaceWith = null);
+
 internal sealed record RestoreResult(int UsersAdded, int UsersAlreadyPresent, int OrganisationsAdded, int WaitlistAdded);
 
 internal interface IDataBackupService

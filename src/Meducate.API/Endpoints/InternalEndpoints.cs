@@ -90,6 +90,17 @@ internal static class InternalEndpoints
                     uncategorized = uncategorized.Select(t => new { t.Name, t.TopicType, t.NeedsLlmReprocessing }),
                 });
             });
+        internalRoutes.MapPost("/internal/topics/edit-items",
+            async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, List<Meducate.Domain.Services.ItemEdit> edits, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "edit-items");
+                if (authError is not null) return authError;
+
+                var (applied, notFound) = await writeRepo.EditListItemsAsync(edits, ct);
+                logger.LogInformation("Internal: edited list items ({Applied} applied, {NotFound} not found)", applied, notFound);
+                return Results.Ok(new { applied, notFound });
+            });
         internalRoutes.MapGet("/internal/seen",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, string name, CancellationToken ct) =>
             {

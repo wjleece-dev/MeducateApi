@@ -333,6 +333,48 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
         Assert.Equal(0, again.RootElement.GetProperty("usersAdded").GetInt32());
     }
 
+    [Fact]
+    public async Task EditItems_RemovesAndReplacesListEntries_AndBumpsTheVersion()
+    {
+        var api = NewClient(factory);
+        api.DefaultRequestHeaders.Add("X-Api-Key", ApiConstants.DemoRawKey);
+
+        async Task<JsonDocument> GetAsthma() => JsonDocument.Parse(await api.GetStringAsync("/api/v1/topics/Asthma"));
+
+        using var before = await GetAsthma();
+        var symptoms = before.RootElement.GetProperty("symptoms").EnumerateArray().Select(e => e.GetString()!).ToList();
+        Assert.True(symptoms.Count >= 2);
+        var version = before.RootElement.GetProperty("version").GetInt32();
+
+        var edits = new object[]
+        {
+            new { name = "Asthma", field = "observations", item = symptoms[0].ToUpperInvariant() }, // case-insensitive match
+            new { name = "Asthma", field = "observations", item = symptoms[1], replaceWith = "Replaced entry" },
+            new { name = "Asthma", field = "observations", item = "not a real entry" },
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/internal/topics/edit-items") { Content = JsonContent.Create(edits) };
+        request.Headers.Add("X-Internal-Token", MeducateApiFactory.InternalToken);
+        var response = await NewClient(factory).SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(2, result.RootElement.GetProperty("applied").GetInt32());
+        Assert.Equal(1, result.RootElement.GetProperty("notFound").GetInt32());
+
+        // The public endpoint serves a cached copy for a few minutes, so read the stored topic through the internal view.
+        using var inspect = new HttpRequestMessage(HttpMethod.Get, "/internal/topics/fact-check?count=10&skip=0");
+        inspect.Headers.Add("X-Internal-Token", MeducateApiFactory.InternalToken);
+        using var stored = JsonDocument.Parse(await (await NewClient(factory).SendAsync(inspect)).Content.ReadAsStringAsync());
+        var asthma = stored.RootElement.GetProperty("topics").EnumerateArray().Single(t => t.GetProperty("name").GetString() == "Asthma");
+        var now = asthma.GetProperty("observations").EnumerateArray().Select(e => e.GetString()!).ToList();
+        Assert.DoesNotContain(symptoms[0], now);
+        Assert.Contains("Replaced entry", now);
+        Assert.Equal(version + 1, asthma.GetProperty("version").GetInt32());
+
+        var anonymous = await NewClient(factory).PostAsJsonAsync("/internal/topics/edit-items", edits);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+    }
+
     // --- Waitlist -----------------------------------------------------------------------------
     // Each test uses its own X-Forwarded-For address: the waitlist rate limit (5/hour) is
     // per client address, and these tests would otherwise share one partition and trip it.

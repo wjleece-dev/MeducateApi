@@ -65,6 +65,63 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
     public async Task<List<SeenTopic>> FindSeenTopicsAsync(string contains, CancellationToken ct) =>
         await _db.SeenTopics.AsNoTracking().Where(s => EF.Functions.ILike(s.Name, "%" + contains + "%")).OrderBy(s => s.Name).Take(50).ToListAsync(ct);
 
+    // Removes or replaces single list entries by exact (case-insensitive) text, e.g. items a grounding review found
+    // the source does not support. Changed topics get a new version so /topics/changes reports them.
+    public async Task<(int Applied, int NotFound)> EditListItemsAsync(IReadOnlyList<Meducate.Domain.Services.ItemEdit> edits, CancellationToken ct)
+    {
+        int applied = 0, notFound = 0;
+
+        foreach (var group in edits.GroupBy(e => e.Name))
+        {
+            var topic = await _db.HealthTopics.FirstOrDefaultAsync(t => t.Name == group.Key, ct);
+            if (topic is null)
+            {
+                notFound += group.Count();
+                continue;
+            }
+
+            var changed = false;
+            foreach (var edit in group)
+            {
+                var list = edit.Field.ToLowerInvariant() switch
+                {
+                    "observations" => topic.Observations,
+                    "factors" => topic.Factors,
+                    "actions" => topic.Actions,
+                    _ => null,
+                };
+
+                var index = list?.FindIndex(i => string.Equals(i, edit.Item, StringComparison.OrdinalIgnoreCase)) ?? -1;
+                if (list is null || index < 0)
+                {
+                    notFound++;
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(edit.ReplaceWith))
+                    list.RemoveAt(index);
+                else
+                    list[index] = edit.ReplaceWith;
+
+                applied++;
+                changed = true;
+            }
+
+            if (!changed)
+                continue;
+
+            // Reassign so EF notices the in-place change to the list column.
+            topic.Observations = [.. topic.Observations ?? []];
+            topic.Factors = [.. topic.Factors ?? []];
+            topic.Actions = [.. topic.Actions ?? []];
+            topic.LastUpdated = DateTime.UtcNow;
+            topic.Version++;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return (applied, notFound);
+    }
+
     // Lets discovery pick these provider titles up again (the deduplication table otherwise blocks them).
     public async Task<int> ForgetSeenTopicsAsync(IReadOnlyCollection<string> names, CancellationToken ct) =>
         await _db.SeenTopics.Where(s => names.Contains(s.Name)).ExecuteDeleteAsync(ct);

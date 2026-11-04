@@ -14,6 +14,7 @@ internal interface ITopicWriteRepository
     Task<int> RenameAndRetypeAsync(string from, string to, string newType, CancellationToken ct);
     Task<int> RetypeAsync(string name, string newType, CancellationToken ct);
     Task<List<SeenTopic>> FindSeenTopicsAsync(string contains, CancellationToken ct);
+    Task<(int Applied, int NotFound)> EditListItemsAsync(IReadOnlyList<Meducate.Domain.Services.ItemEdit> edits, CancellationToken ct);
     Task<int> ForgetSeenTopicsAsync(IReadOnlyCollection<string> names, CancellationToken ct);
     Task<int> SetCategoryAsync(string name, string category, CancellationToken ct);
     Task<int> ClearIcd11CodesAsync(CancellationToken ct);

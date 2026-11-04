@@ -426,6 +426,7 @@ public class TopicIngestionServiceTests
 
         public Task<int> RenameAndRetypeAsync(string from, string to, string newType, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RetypeAsync(string name, string newType, CancellationToken ct) => Task.FromResult(0);
+        public Task<(int Applied, int NotFound)> EditListItemsAsync(IReadOnlyList<ItemEdit> edits, CancellationToken ct) => Task.FromResult((0, 0));
         public Task<List<SeenTopic>> FindSeenTopicsAsync(string contains, CancellationToken ct) => Task.FromResult(new List<SeenTopic>());
         public Task<int> ForgetSeenTopicsAsync(IReadOnlyCollection<string> names, CancellationToken ct) => Task.FromResult(0);
         public Task<int> SetCategoryAsync(string name, string category, CancellationToken ct) => Task.FromResult(0);
