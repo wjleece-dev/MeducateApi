@@ -42,12 +42,12 @@ internal static class InternalEndpoints
                 return Results.Ok(new { topics = count });
             });
         internalRoutes.MapGet("/internal/llm/spend",
-            async (HttpContext http, Meducate.Domain.Services.ILlmSpendTracker tracker, IConfiguration config, ILoggerFactory loggerFactory, int days, CancellationToken ct) =>
+            async (HttpContext http, Meducate.Domain.Services.ILlmSpendTracker tracker, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct, int days = 7) =>
             {
                 var authError = CheckToken(http, config, loggerFactory.CreateLogger("Meducate.API.Internal"), "llm-spend");
                 if (authError is not null) return authError;
 
-                var summary = await tracker.GetSummaryAsync(Math.Clamp(days == 0 ? 7 : days, 1, 60), ct);
+                var summary = await tracker.GetSummaryAsync(Math.Clamp(days, 1, 60), ct);
                 return Results.Ok(new
                 {
                     dailyBudgetUsd = summary.DailyBudgetUsd,
