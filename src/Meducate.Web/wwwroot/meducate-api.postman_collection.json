@@ -42,7 +42,7 @@
     },
     {
       "key": "icd11Code",
-      "value": "CA23.32",
+      "value": "CA23",
       "type": "string"
     }
   ],
