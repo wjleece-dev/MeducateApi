@@ -35,7 +35,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
 
     private KernelArguments Arguments(bool escalate, params (string Key, object? Value)[] values)
     {
-        var args = escalate && kernel.Services.GetKeyedService<IChatCompletionService>(EscalationServiceId) is not null
+        var args = escalate && _kernel.Services.GetKeyedService<IChatCompletionService>(EscalationServiceId) is not null
             ? new KernelArguments(EscalatedJsonResponseFormat)
             : [];
         foreach (var (key, value) in values)

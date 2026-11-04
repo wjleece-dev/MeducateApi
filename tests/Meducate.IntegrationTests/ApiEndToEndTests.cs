@@ -48,6 +48,30 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
     }
 
     [Fact]
+    public async Task Root_ReturnsServiceInfoWithDocsLink()
+    {
+        var response = await NewClient(factory).GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("https://meducateapi.com/docs", doc.RootElement.GetProperty("docs").GetString());
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/v1/topics?take=abc", HttpStatusCode.BadRequest)]
+    [InlineData("POST", "/api/v1/topics", HttpStatusCode.MethodNotAllowed)]
+    public async Task BodylessErrors_AreReturnedAsProblemJson(string method, string path, HttpStatusCode expected)
+    {
+        var client = NewClientWithCsrfHeader(factory);
+        client.DefaultRequestHeaders.Add("X-Api-Key", ApiConstants.DemoRawKey);
+
+        var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path));
+
+        Assert.Equal(expected, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
     public async Task UnknownTopic_Returns404WithGuidanceAndSuggestions()
     {
         var client = NewClient(factory);

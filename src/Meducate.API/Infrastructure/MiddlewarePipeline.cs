@@ -30,6 +30,8 @@ internal static class MiddlewarePipeline
 
         // Outermost middleware — wraps everything so all responses get headers and exceptions are caught
         app.UseMiddleware<GlobalExceptionMiddleware>();
+        // Body-less error responses (405, unbindable query parameters, unknown routes) become problem+json like the rest
+        app.UseStatusCodePages();
         app.UseMiddleware<SecurityHeadersMiddleware>();
         app.UseMiddleware<ETagMiddleware>();
         app.UseMiddleware<CorrelationIdMiddleware>();
@@ -88,6 +90,14 @@ internal static class MiddlewarePipeline
         {
             Predicate = check => check.Tags.Contains("ready")
         });
+        app.MapGet("/", () => Results.Ok(new
+        {
+            name = "Meducate API",
+            version = "v1",
+            docs = "https://meducateapi.com/docs",
+            openapi = "/swagger/v1/swagger.json",
+            health = "/health",
+        })).ExcludeFromDescription();
         var v1 = app.MapGroup("/api/v1");
         v1.MapAuthEndpoints();
         v1.MapOrgEndpoints();

@@ -38,6 +38,8 @@ internal static class ApiServiceRegistration
 
         // Swagger
         services.AddEndpointsApiExplorer();
+        services.AddProblemDetails();
+
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo

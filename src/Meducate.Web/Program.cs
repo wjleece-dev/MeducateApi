@@ -8,6 +8,10 @@ builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>
 {
     options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
                              | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    // Only Cloudflare and Railway's edge can reach this app, so trust their forwarded scheme. Without this the
+    // app saw plain http: no HSTS header and http:// redirect locations.
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
@@ -55,6 +59,7 @@ var app = builder.Build();
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("MeducateAPI");
 
 app.UseForwardedHeaders();
+app.UseStatusCodePagesWithReExecute("/not-found");
 
 if (!app.Environment.IsDevelopment())
 {
@@ -287,6 +292,6 @@ app.MapMethods("/health", ["GET", "HEAD"], () => Results.Ok());
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode(options => options.ContentSecurityFrameAncestorsPolicy = "'none'");
 
 app.Run();
