@@ -80,14 +80,14 @@
             <hr>
 
             <h2 class="fw-semibold">Searching: releases, headers, and what actually comes back</h2>
-            <p>The search endpoint is pinned to a specific release &mdash; a URL like <code>/icd/release/11/2024-01/mms/search</code> &mdash; not "the latest ICD-11." WHO cuts a new release roughly once a year, so whatever you point at will quietly age unless you're the one who remembers to bump it.</p>
+            <p>The search endpoint is pinned to a specific release &mdash; a URL like <code>/icd/release/11/2026-01/mms/search</code> &mdash; not "the latest ICD-11." WHO cuts a new release roughly once a year, so whatever you point at will quietly age unless you're the one who remembers to bump it.</p>
             <p>Every request needs an <code>API-Version</code> header and an <code>Accept-Language</code> header alongside the bearer token, or you'll get responses that don't look like what the docs show.</p>
             <p>The response itself is a flat list of <code>destinationEntities</code>, and not all of them are codeable. ICD-11 is a hierarchy: chapters and blocks group things together but don't carry a diagnosis code themselves, only the leaf entities under them do. A naive integration that takes the first search result will happily hand back a chapter heading with no <code>theCode</code> field, which is worse than no match at all if your code doesn't check for it.</p>
 
             <hr>
 
             <h2 class="fw-semibold">How Meducate handles this</h2>
-            <p>Meducate's health topics are cross-referenced against ICD-11 automatically. Every diagnosable topic &mdash; diseases, disorders, syndromes, symptoms, and mental health topics &mdash; is looked up against the live WHO API, walking past non-codeable chapter and block entries to the first real coded match.</p>
+            <p>Meducate's health topics are cross-referenced against ICD-11 automatically. Every diagnosable topic &mdash; diseases, disorders, syndromes, symptoms, and mental health topics &mdash; is looked up against the live WHO API. Chapter and block entries are skipped, and WHO's relevance ranking is not trusted: a result is only accepted when its title, or a synonym WHO lists for it, is the topic itself.</p>
             <p>If nothing in the search results is confidently the same condition, the topic just doesn't get a code. We don't force a guess to fill the field &mdash; a topic with no ICD-11 code is more useful than one with the wrong one attached.</p>
             <p>The result: you call <code>/topics/{name}</code> and get back <code>icd11Code</code> and <code>icd11Title</code> already populated where a confident match exists. No OAuth flow, no release URL to track, no filtering chapters out of search results yourself.</p>
 
