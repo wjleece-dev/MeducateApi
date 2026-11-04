@@ -343,12 +343,28 @@ internal sealed class TopicBackfillService(
         }
     }
 
+    // True when the last BackfillCategoriesAsync call could not reach the classifier; callers must not treat
+    // the topics it left uncategorised as unclassifiable.
+    internal bool CategoryBackfillFailed { get; private set; }
+
     internal async Task<int> BackfillCategoriesAsync(CancellationToken ct, PerformContext? console = null)
     {
+        CategoryBackfillFailed = false;
         var uncategorized = await _queryRepo.GetUncategorizedTopicsAsync(ct);
 
+        var fixedCount = 0;
+        foreach (var topic in uncategorized.Where(t => t.TopicType is not null && TopicConstants.CategoryByType.ContainsKey(t.TopicType)).ToList())
+        {
+            topic.Category = TopicConstants.CategoryByType[topic.TopicType!];
+            uncategorized.Remove(topic);
+            fixedCount++;
+        }
+
+        if (fixedCount > 0)
+            await _writeRepo.SaveChangesAsync(ct);
+
         if (uncategorized.Count == 0)
-            return 0;
+            return fixedCount;
 
         if (_logger.IsEnabled(LogLevel.Information))
             _logger.LogInformation("Backfilling categories for {Count} uncategorized topics", uncategorized.Count);
@@ -379,7 +395,7 @@ internal sealed class TopicBackfillService(
 
             console?.WriteLine($"Assigned categories to {assigned} topics.");
 
-            return assigned;
+            return assigned + fixedCount;
         }
         catch (Exception ex)
         {
@@ -387,8 +403,9 @@ internal sealed class TopicBackfillService(
             console?.WriteLine($"Category backfill failed: {ex.Message}");
 
             _writeRepo.RevertChanges(uncategorized);
+            CategoryBackfillFailed = true;
 
-            return 0;
+            return fixedCount;
         }
     }
 

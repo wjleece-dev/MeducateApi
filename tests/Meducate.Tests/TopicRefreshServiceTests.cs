@@ -187,6 +187,36 @@ public class TopicRefreshServiceTests
     }
 
     [Fact]
+    public async Task RefreshAllAsync_Phase3_AssignsFixedCategoriesWithoutAskingTheModel()
+    {
+        var topic = new HealthTopic { Name = "Liver Transplantation", TopicType = "Procedure", Category = null };
+        var queryRepo = new FakeQueryRepo { AllTopics = [topic] };
+        var writeRepo = new FakeWriteRepo();
+        var llm = new FakeLlmProcessor { CategoryFailure = new InvalidOperationException("model unavailable") };
+        var service = BuildService([], queryRepo, writeRepo, llm);
+
+        await service.RefreshAllAsync();
+
+        Assert.Equal("Medical Procedures & Interventions", topic.Category);
+        Assert.DoesNotContain(topic, writeRepo.Removed);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_Phase4_DoesNotRemoveTopics_WhenTheClassifierFailed()
+    {
+        var topic = new HealthTopic { Name = "Chronic Kidney Disease", TopicType = "Disease", Category = null };
+        var queryRepo = new FakeQueryRepo { AllTopics = [topic] };
+        var writeRepo = new FakeWriteRepo();
+        var llm = new FakeLlmProcessor { CategoryFailure = new InvalidOperationException("HTTP 429 insufficient_quota") };
+        var service = BuildService([], queryRepo, writeRepo, llm);
+
+        await service.RefreshAllAsync();
+
+        Assert.DoesNotContain(topic, writeRepo.Removed);
+        Assert.Null(topic.Category);
+    }
+
+    [Fact]
     public async Task RefreshAllAsync_SwallowsProviderFetchException()
     {
         var topic = new HealthTopic { Name = "Topic A", SourceHash = "old-hash" };
@@ -258,6 +288,7 @@ public class TopicRefreshServiceTests
         public bool ParseCalled { get; private set; }
         public bool VerifyCalled { get; private set; }
         public Dictionary<string, string> CategoryResult { get; set; } = [];
+        public Exception? CategoryFailure { get; set; }
 
         public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default, bool escalate = false)
         {
@@ -275,7 +306,7 @@ public class TopicRefreshServiceTests
             Task.FromResult(new Dictionary<string, string>());
 
         public Task<Dictionary<string, string>> ClassifyTopicCategoriesAsync(IReadOnlyList<TopicCategoryInput> topics, CancellationToken ct = default) =>
-            Task.FromResult(CategoryResult);
+            CategoryFailure is not null ? throw CategoryFailure : Task.FromResult(CategoryResult);
 
         public Task<BroaderNameResult> CompareBroaderNameAsync(string candidate, string existing, CancellationToken ct = default) =>
             Task.FromResult(new BroaderNameResult(existing, false));
@@ -287,7 +318,7 @@ public class TopicRefreshServiceTests
 
         public IReadOnlySet<string> GetValidCategories() => new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Nervous System", "Digestive System"
+            "Nervous System", "Digestive System", "Medical Procedures & Interventions"
         };
     }
 

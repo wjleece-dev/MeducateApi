@@ -321,6 +321,18 @@ internal sealed class TopicRefreshService(
         var uncategorized = await _queryRepo.GetTopicsNeedingCategoryAsync(_llmProcessor.GetValidCategories(), ct);
 
         var categorizedCount = 0;
+        var categorizationFailed = false;
+
+        foreach (var topic in uncategorized.Where(t => t.TopicType is not null && TopicConstants.CategoryByType.ContainsKey(t.TopicType)).ToList())
+        {
+            topic.Category = TopicConstants.CategoryByType[topic.TopicType!];
+            uncategorized.Remove(topic);
+            categorizedCount++;
+        }
+
+        if (categorizedCount > 0)
+            await _writeRepo.SaveChangesAsync(ct);
+
         if (uncategorized.Count > 0)
         {
             if (_logger.IsEnabled(LogLevel.Information))
@@ -356,13 +368,15 @@ internal sealed class TopicRefreshService(
                 }
                 console?.WriteLine($"Category classification failed: {ex.Message}");
                 _writeRepo.RevertChanges(uncategorized);
+                categorizationFailed = true;
             }
         }
 
         // Phase 4 — Remove any topics still without a valid category after Phase 3
         var stillUncategorized = await _queryRepo.GetTopicsNeedingCategoryAsync(_llmProcessor.GetValidCategories(), ct);
         var uncategorizedRemovedCount = 0;
-        if (stillUncategorized.Count > 0)
+        // A failed classifier call (quota, outage) says nothing about the topics, so only remove when the call succeeded.
+        if (stillUncategorized.Count > 0 && !categorizationFailed)
         {
             _logger.LogWarning("Removing {Count} topics with no category after refresh: {Names}",
                 stillUncategorized.Count, string.Join(", ", stillUncategorized.Select(t => t.Name)));

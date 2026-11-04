@@ -395,7 +395,8 @@ internal sealed class TopicIngestionService(
         // 13. Remove any topics that still have no category — only categorised topics are served
         var uncategorized = await _queryRepo.GetUncategorizedTopicsAsync(ct);
         var uncategorizedRemovedCount = 0;
-        if (uncategorized.Count > 0)
+        // Only when the classifier answered: an outage or exhausted quota must not delete topics awaiting a category.
+        if (uncategorized.Count > 0 && !_backfillService.CategoryBackfillFailed)
         {
             _logger.LogWarning("Removing {Count} topics that could not be assigned a category: {Names}",
                 uncategorized.Count, string.Join(", ", uncategorized.Select(t => t.Name)));
