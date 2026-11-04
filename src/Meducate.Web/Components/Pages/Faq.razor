@@ -45,7 +45,7 @@
                 "name": "What are the rate limits?",
                 "acceptedAnswer": {
                     "@@type": "Answer",
-                    "text": "Each API key allows 1,000 requests per day. Usage resets at midnight UTC. Requests exceeding the limit receive a 429 Too Many Requests response. You can create up to 5 API keys per organisation."
+                    "text": "Each API key allows 1,000 requests per day and 60 requests per minute. The daily count resets at midnight UTC. Requests exceeding either limit receive a 429 Too Many Requests response with a Retry-After header. You can create up to 5 API keys per organisation."
                 }
             },
             {
@@ -150,8 +150,9 @@
             <h2 class="fw-semibold">What are the rate limits?</h2>
             <ul>
                 <li>1,000 requests per day per API key</li>
-                <li>Usage resets at midnight UTC</li>
-                <li>Requests exceeding the limit receive a <code>429 Too Many Requests</code> response</li>
+                <li>60 requests per minute per API key</li>
+                <li>The daily count resets at midnight UTC</li>
+                <li>Requests exceeding either limit receive a <code>429 Too Many Requests</code> response with a <code>Retry-After</code> header</li>
                 <li>You can create up to 5 API keys per organisation</li>
             </ul>
 
