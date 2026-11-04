@@ -6,7 +6,10 @@ namespace Meducate.API.Infrastructure;
 
 internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilter
 {
-    internal const string CookieName = "HangfireAuth";
+    // New name: the previous scheme stored the raw password in a cookie called HangfireAuth, and a browser still
+    // holding that one would send both values under the same name.
+    internal const string CookieName = "HangfireSession";
+    private const string LegacyCookieName = "HangfireAuth";
     internal const string LoginPath = "/hangfire-login";
     private const string PasswordKey = "Hangfire:DashboardPassword";
 
@@ -18,9 +21,15 @@ internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilte
         if (string.IsNullOrEmpty(expectedPassword))
             return false;
 
-        if (httpContext.Request.Cookies.TryGetValue(CookieName, out var cookieValue)
-            && Matches(cookieValue, SessionToken(expectedPassword)))
-            return true;
+        var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Meducate.API.HangfireAuth");
+
+        if (httpContext.Request.Cookies.TryGetValue(CookieName, out var cookieValue))
+        {
+            if (Matches(cookieValue, SessionToken(expectedPassword)))
+                return true;
+
+            logger.LogWarning("Hangfire dashboard: session cookie present but not valid (length {Length})", cookieValue.Length);
+        }
 
         WriteLoginPage(httpContext, httpContext.Request.Query.ContainsKey("error") ? "Invalid password." : null);
         return false;
@@ -29,11 +38,20 @@ internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilte
     // The password is posted to LoginPath, never put in the URL, so it stays out of access logs and history.
     internal static IResult Login(HttpContext httpContext, IConfiguration config)
     {
+        var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Meducate.API.HangfireAuth");
         var expectedPassword = config[PasswordKey];
         var submitted = httpContext.Request.HasFormContentType ? httpContext.Request.Form["password"].FirstOrDefault() : null;
 
         if (string.IsNullOrEmpty(expectedPassword) || !Matches(submitted, expectedPassword))
+        {
+            // Lengths only, never the values: enough to tell a trailing space or a truncated paste from a wrong password.
+            logger.LogWarning("Hangfire dashboard: login rejected (form present: {Form}, submitted length {Submitted}, configured length {Configured})",
+                httpContext.Request.HasFormContentType, submitted?.Length ?? 0, expectedPassword?.Length ?? 0);
             return Results.Redirect("/hangfire?error=1");
+        }
+
+        logger.LogInformation("Hangfire dashboard: login accepted");
+        httpContext.Response.Cookies.Delete(LegacyCookieName, new CookieOptions { Path = "/", Secure = true, SameSite = SameSiteMode.Strict });
 
         httpContext.Response.Cookies.Append(CookieName, SessionToken(expectedPassword), new CookieOptions
         {

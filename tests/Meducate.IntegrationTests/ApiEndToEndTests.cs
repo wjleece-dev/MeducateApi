@@ -77,8 +77,7 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
         var right = await client.PostAsync("/hangfire-login", new FormUrlEncodedContent([new("password", MeducateApiFactory.DashboardPassword)]));
         Assert.Equal(HttpStatusCode.Redirect, right.StatusCode);
         Assert.Equal("/hangfire", right.Headers.Location?.OriginalString);
-        var cookie = Assert.Single(right.Headers.GetValues("Set-Cookie")).Split(';')[0];
-        Assert.StartsWith("HangfireAuth=", cookie);
+        var cookie = Assert.Single(right.Headers.GetValues("Set-Cookie"), c => c.StartsWith("HangfireSession=")).Split(';')[0];
         Assert.DoesNotContain(MeducateApiFactory.DashboardPassword, cookie);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "/hangfire");
