@@ -59,9 +59,8 @@ internal static class AuthEndpoints
                 var existing = await users.GetByEmailAsync(request.Email, ct);
                 if (existing is null)
                 {
-                    return Results.Problem(
-                        detail: "No account found for this email. Please create an account first.",
-                        statusCode: StatusCodes.Status404NotFound);
+                    // Same answer as for a known address, so this form cannot be used to probe which emails have accounts.
+                    return Results.Ok(new { message = "If an account exists for this email, we’ve sent a verification link." });
                 }
                 user = existing;
             }

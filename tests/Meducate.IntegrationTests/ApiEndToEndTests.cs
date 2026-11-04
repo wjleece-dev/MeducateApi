@@ -48,6 +48,19 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
     }
 
     [Fact]
+    public async Task SignIn_WithUnknownEmail_GivesTheSameAnswerAsAKnownOne()
+    {
+        var client = NewClientWithCsrfHeader(factory);
+
+        var response = await client.PostAsJsonAsync("/api/v1/users/register",
+            new { email = "nobody-registered-here@example.com", mode = "signin" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Contains("If an account exists", doc.RootElement.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task Root_ReturnsServiceInfoWithDocsLink()
     {
         var response = await NewClient(factory).GetAsync("/");

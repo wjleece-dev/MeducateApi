@@ -50,6 +50,23 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: sanitised {Count} stored topics", changed);
                 return Results.Ok(new { changed });
             });
+        app.MapGet("/internal/diag/client",
+            (HttpContext http, IConfiguration config, ILoggerFactory loggerFactory) =>
+            {
+                var authError = CheckToken(http, config, loggerFactory.CreateLogger("Meducate.API.Internal"), "diag");
+                if (authError is not null) return authError;
+
+                // What the app sees of the caller: used to confirm which address the rate limiters key on.
+                return Results.Ok(new
+                {
+                    resolved = Meducate.API.Infrastructure.ClientIp.Resolve(http),
+                    remote = http.Connection.RemoteIpAddress?.ToString(),
+                    scheme = http.Request.Scheme,
+                    cfConnectingIp = http.Request.Headers["CF-Connecting-IP"].ToString(),
+                    xForwardedFor = http.Request.Headers["X-Forwarded-For"].ToString(),
+                    xRealIp = http.Request.Headers["X-Real-IP"].ToString(),
+                });
+            });
         app.MapPost("/internal/topics/retype",
             (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, Dictionary<string, string> nameToType, CancellationToken ct)
                 => HandleTopicRetype(http, writeRepo, config, loggerFactory, nameToType, ct));

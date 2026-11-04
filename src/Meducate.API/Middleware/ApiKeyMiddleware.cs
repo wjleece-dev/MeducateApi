@@ -15,7 +15,7 @@ internal sealed class ApiKeyMiddleware(RequestDelegate next, IMemoryCache cache,
     private static readonly TimeSpan ClientCacheDuration = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan UsageCacheDuration = TimeSpan.FromSeconds(15);
 
-    public async Task InvokeAsync(HttpContext context, IApiKeyService apiKeyService)
+    public async Task InvokeAsync(HttpContext context, IApiKeyService apiKeyService, ApiKeyRateLimiter keyLimiter)
     {
         // Only enforce API key on endpoints tagged with [RequiresApiKey]
         var endpoint = context.GetEndpoint();
@@ -64,6 +64,14 @@ internal sealed class ApiKeyMiddleware(RequestDelegate next, IMemoryCache cache,
         {
             _logger.LogWarning("Failed secret validation for keyId '{KeyId}'", keyId);
             await ProblemResponse.WriteAsync(context, StatusCodes.Status401Unauthorized, "Invalid API key.");
+            return;
+        }
+
+        if (!keyLimiter.TryAcquire(client.Id, out var retryAfterSeconds))
+        {
+            context.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
+            await ProblemResponse.WriteAsync(context, StatusCodes.Status429TooManyRequests,
+                $"Rate limit exceeded: {ApiKeyRateLimiter.PermitsPerMinute} requests per minute per API key. Retry in {retryAfterSeconds} seconds.");
             return;
         }
 

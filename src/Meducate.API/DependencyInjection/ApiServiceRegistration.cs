@@ -38,6 +38,7 @@ internal static class ApiServiceRegistration
 
         // Swagger
         services.AddEndpointsApiExplorer();
+        services.AddSingleton<ApiKeyRateLimiter>();
         services.AddProblemDetails();
 
         services.AddSwaggerGen(c =>
@@ -81,25 +82,20 @@ internal static class ApiServiceRegistration
                     status = StatusCodes.Status429TooManyRequests,
                     detail = isWaitlist
                         ? $"Too many waitlist requests from this address. Retry in {retryAfterSeconds} seconds."
-                        : $"Rate limit exceeded: 60 requests per minute per API key. Retry in {retryAfterSeconds} seconds.",
+                        : $"Too many requests from this address. Retry in {retryAfterSeconds} seconds.",
                 }, ct);
             };
 
             options.GlobalLimiter =
                 PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 {
-                    var apiKey = context.Request.Headers["X-Api-Key"].FirstOrDefault();
-                    var keyId = apiKey?.Split('.', 2)[0];
-
-                    var partitionKey = !string.IsNullOrWhiteSpace(keyId)
-                        ? $"key:{keyId}"
-                        : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-
+                    // Pre-authentication abuse guard, per client address. The per-key limit (60/min)
+                    // is applied after authentication by ApiKeyMiddleware.
                     return RateLimitPartition.GetFixedWindowLimiter(
-                        partitionKey: partitionKey,
+                        partitionKey: $"ip:{ClientIp.Resolve(context)}",
                         factory: _ => new FixedWindowRateLimiterOptions
                         {
-                            PermitLimit = 60,
+                            PermitLimit = 300,
                             Window = TimeSpan.FromMinutes(1),
                             QueueLimit = 0,
                             AutoReplenishment = true
@@ -109,7 +105,7 @@ internal static class ApiServiceRegistration
             // Waitlist: 5 submissions per hour per client address. Stacks with the global limiter.
             options.AddPolicy(ApiConstants.WaitlistRateLimitPolicy, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: $"waitlist:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+                    partitionKey: $"waitlist:{ClientIp.Resolve(context)}",
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 5,

@@ -38,7 +38,7 @@ public class ApiKeyMiddlewareTests
         var middleware = CreateMiddleware(_ => { called = true; return Task.CompletedTask; });
         var context = CreateContext(requiresKey: false);
 
-        await middleware.InvokeAsync(context, new StubApiKeyService());
+        await middleware.InvokeAsync(context, new StubApiKeyService(), new ApiKeyRateLimiter());
 
         Assert.True(called);
     }
@@ -49,7 +49,7 @@ public class ApiKeyMiddlewareTests
         var middleware = CreateMiddleware();
         var context = CreateContext();
 
-        await middleware.InvokeAsync(context, new StubApiKeyService());
+        await middleware.InvokeAsync(context, new StubApiKeyService(), new ApiKeyRateLimiter());
 
         Assert.Equal(401, context.Response.StatusCode);
     }
@@ -61,7 +61,7 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "nodothere";
 
-        await middleware.InvokeAsync(context, new StubApiKeyService());
+        await middleware.InvokeAsync(context, new StubApiKeyService(), new ApiKeyRateLimiter());
 
         Assert.Equal(401, context.Response.StatusCode);
     }
@@ -73,7 +73,7 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "unknown.secret";
 
-        await middleware.InvokeAsync(context, new StubApiKeyService());
+        await middleware.InvokeAsync(context, new StubApiKeyService(), new ApiKeyRateLimiter());
 
         Assert.Equal(401, context.Response.StatusCode);
     }
@@ -89,7 +89,7 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "key1.secret";
 
-        await middleware.InvokeAsync(context, service);
+        await middleware.InvokeAsync(context, service, new ApiKeyRateLimiter());
 
         Assert.Equal(401, context.Response.StatusCode);
     }
@@ -105,9 +105,51 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "key1.secret";
 
-        await middleware.InvokeAsync(context, service);
+        await middleware.InvokeAsync(context, service, new ApiKeyRateLimiter());
 
         Assert.Equal(401, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task WrongSecretAttempts_DoNotConsumeTheKeysRateLimit()
+    {
+        var client = new ApiClient { Id = Guid.NewGuid(), KeyId = "key1", IsActive = true, DailyLimit = 1000 };
+        var limiter = new ApiKeyRateLimiter();
+
+        // Anyone can claim a key id; failed secrets must not lock the real holder out.
+        for (var i = 0; i < ApiKeyRateLimiter.PermitsPerMinute + 10; i++)
+        {
+            var bad = CreateContext();
+            bad.Request.Headers["X-Api-Key"] = "key1.wrong";
+            await CreateMiddleware().InvokeAsync(bad, new StubApiKeyService { Client = client, SecretValid = false }, limiter);
+            Assert.Equal(401, bad.Response.StatusCode);
+        }
+
+        var good = CreateContext();
+        good.Request.Headers["X-Api-Key"] = "key1.secret";
+        await CreateMiddleware().InvokeAsync(good, new StubApiKeyService { Client = client, SecretValid = true }, limiter);
+
+        Assert.NotEqual(401, good.Response.StatusCode);
+        Assert.NotEqual(429, good.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ValidKey_IsLimitedToSixtyRequestsPerMinute()
+    {
+        var client = new ApiClient { Id = Guid.NewGuid(), KeyId = "key1", IsActive = true, DailyLimit = 1000 };
+        var service = new StubApiKeyService { Client = client, SecretValid = true };
+        var limiter = new ApiKeyRateLimiter();
+
+        HttpContext last = null!;
+        for (var i = 0; i < ApiKeyRateLimiter.PermitsPerMinute + 1; i++)
+        {
+            last = CreateContext();
+            last.Request.Headers["X-Api-Key"] = "key1.secret";
+            await CreateMiddleware().InvokeAsync(last, service, limiter);
+        }
+
+        Assert.Equal(429, last.Response.StatusCode);
+        Assert.True(last.Response.Headers.ContainsKey("Retry-After"));
     }
 
     [Fact]
@@ -122,7 +164,7 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "key1.wrongsecret";
 
-        await middleware.InvokeAsync(context, service);
+        await middleware.InvokeAsync(context, service, new ApiKeyRateLimiter());
 
         Assert.Equal(401, context.Response.StatusCode);
     }
@@ -141,7 +183,7 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "key1.validsecret";
 
-        await middleware.InvokeAsync(context, service);
+        await middleware.InvokeAsync(context, service, new ApiKeyRateLimiter());
 
         Assert.Equal(429, context.Response.StatusCode);
         Assert.Equal("86400", context.Response.Headers.RetryAfter.ToString());
@@ -162,7 +204,7 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "key1.validsecret";
 
-        await middleware.InvokeAsync(context, service);
+        await middleware.InvokeAsync(context, service, new ApiKeyRateLimiter());
 
         Assert.True(called);
         Assert.Same(client, context.Items["ApiClient"]);
@@ -184,7 +226,7 @@ public class ApiKeyMiddlewareTests
         var context = CreateContext();
         context.Request.Headers["X-Api-Key"] = "key1.validsecret";
 
-        await middleware.InvokeAsync(context, service);
+        await middleware.InvokeAsync(context, service, new ApiKeyRateLimiter());
 
         Assert.True(called);
     }
