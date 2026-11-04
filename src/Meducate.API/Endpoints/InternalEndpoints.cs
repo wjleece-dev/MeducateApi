@@ -28,6 +28,17 @@ internal static class InternalEndpoints
         app.MapPost("/internal/topics/reprocess",
             (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, [Microsoft.AspNetCore.Mvc.FromQuery] string[] type, [Microsoft.AspNetCore.Mvc.FromQuery] string[] name, CancellationToken ct)
                 => HandleTopicReprocess(http, writeRepo, config, loggerFactory, type, name, ct));
+        app.MapPost("/internal/topics/resync",
+            async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "resync");
+                if (authError is not null) return authError;
+
+                var count = await writeRepo.ForceSourceRefreshAsync(ct);
+                logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
+                return Results.Ok(new { topics = count });
+            });
         app.MapPost("/internal/topics/retype",
             (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, Dictionary<string, string> nameToType, CancellationToken ct)
                 => HandleTopicRetype(http, writeRepo, config, loggerFactory, nameToType, ct));

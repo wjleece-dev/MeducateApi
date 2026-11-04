@@ -45,6 +45,11 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
                 .SetProperty(c => c.LastSourceRefresh, now), ct);
     }
 
+    // Makes the next refresh run re-fetch every topic's source, re-extracting any whose text changed
+    // (e.g. after the provider's raw-text format changes).
+    public async Task<int> ForceSourceRefreshAsync(CancellationToken ct) =>
+        await _db.HealthTopics.ExecuteUpdateAsync(s => s.SetProperty(c => c.LastSourceRefresh, (DateTime?)null), ct);
+
     public async Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, IReadOnlyCollection<string> names, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
