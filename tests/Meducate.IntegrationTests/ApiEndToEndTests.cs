@@ -61,6 +61,33 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
     }
 
     [Fact]
+    public async Task HangfireDashboard_RequiresTheLoginAndAcceptsTheSessionCookieItIssues()
+    {
+        var client = factory.CreateClient(new() { AllowAutoRedirect = false, HandleCookies = false });
+
+        var anonymous = await client.GetAsync("/hangfire");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Contains("action=\"/hangfire-login\"", await anonymous.Content.ReadAsStringAsync());
+
+        var wrong = await client.PostAsync("/hangfire-login", new FormUrlEncodedContent([new("password", "nope")]));
+        Assert.Equal(HttpStatusCode.Redirect, wrong.StatusCode);
+        Assert.Equal("/hangfire?error=1", wrong.Headers.Location?.OriginalString);
+        Assert.False(wrong.Headers.Contains("Set-Cookie"));
+
+        var right = await client.PostAsync("/hangfire-login", new FormUrlEncodedContent([new("password", MeducateApiFactory.DashboardPassword)]));
+        Assert.Equal(HttpStatusCode.Redirect, right.StatusCode);
+        Assert.Equal("/hangfire", right.Headers.Location?.OriginalString);
+        var cookie = Assert.Single(right.Headers.GetValues("Set-Cookie")).Split(';')[0];
+        Assert.StartsWith("HangfireAuth=", cookie);
+        Assert.DoesNotContain(MeducateApiFactory.DashboardPassword, cookie);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "/hangfire");
+        request.Headers.Add("Cookie", cookie);
+        var dashboard = await client.SendAsync(request);
+        Assert.NotEqual(HttpStatusCode.Unauthorized, dashboard.StatusCode);
+    }
+
+    [Fact]
     public async Task Root_ReturnsServiceInfoWithDocsLink()
     {
         var response = await NewClient(factory).GetAsync("/");

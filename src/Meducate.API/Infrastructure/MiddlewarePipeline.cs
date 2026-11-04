@@ -98,6 +98,8 @@ internal static class MiddlewarePipeline
             openapi = "/swagger/v1/swagger.json",
             health = "/health",
         })).ExcludeFromDescription();
+        app.MapPost(HangfireDashboardAuthFilter.LoginPath, (HttpContext http, IConfiguration config) => HangfireDashboardAuthFilter.Login(http, config))
+            .ExcludeFromDescription();
         var v1 = app.MapGroup("/api/v1");
         v1.MapAuthEndpoints();
         v1.MapOrgEndpoints();
