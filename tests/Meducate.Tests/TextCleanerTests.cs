@@ -52,6 +52,7 @@ public class TextCleanerTests
     {
         Assert.Equal("National Heart, Lung, and Blood Institute",
             TextCleaner.SourceOrganisation("[MedlinePlus]\n[Source: National Heart, Lung, and Blood Institute]\n\nText"));
+        Assert.Equal("MedlinePlus, U.S. National Library of Medicine", TextCleaner.SourceOrganisation("[MedlinePlus] Some text"));
         Assert.Null(TextCleaner.SourceOrganisation("no tag here"));
     }
 

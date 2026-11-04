@@ -62,11 +62,20 @@ internal static partial class TextCleaner
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(MaxTags)];
 
-    // The "[Source: National Heart, Lung, and Blood Institute]" tag the provider writes into the raw text.
+    // The "[Source: National Heart, Lung, and Blood Institute]" tag the provider writes into the raw text;
+    // pages without one still come from MedlinePlus, which the provider also tags.
     internal static string? SourceOrganisation(string? rawText)
     {
-        var match = rawText is null ? null : SourceTag().Match(rawText);
-        return match is { Success: true } ? Clean(match.Groups[1].Value) : null;
+        if (rawText is null)
+            return null;
+
+        var match = SourceTag().Match(rawText);
+        if (match.Success)
+            return Clean(match.Groups[1].Value);
+
+        return rawText.Contains("[MedlinePlus]", StringComparison.Ordinal)
+            ? "MedlinePlus, U.S. National Library of Medicine"
+            : null;
     }
 
     // Applies the same clean-up the extraction pipeline now does to a stored topic.
