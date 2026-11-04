@@ -65,6 +65,18 @@ public class TextCleanerTests
         Assert.Equal(expected, TopicHelpers.ToTitleCase(input));
 
     [Fact]
+    public void LimitToSource_HoldsAShortSourcesSummaryToTheSentencesTheSourceHas()
+    {
+        const string source = "[MedlinePlus]\n[Source: NIDDK]\nEnzymes are substances that speed up chemical reactions in the body.";
+        const string padded = "Enzymes are substances that accelerate reactions. They play a crucial role in biology. They are vital for digestion.";
+
+        Assert.Equal("Enzymes are substances that accelerate reactions.", TextCleaner.LimitToSource(padded, source));
+        // A long source leaves the summary alone.
+        Assert.Equal(padded, TextCleaner.LimitToSource(padded, source + " " + new string('x', 700)));
+        Assert.Equal(padded, TextCleaner.LimitToSource(padded, null));
+    }
+
+    [Fact]
     public void SourceOrganisation_ReadsProviderTag()
     {
         Assert.Equal("National Heart, Lung, and Blood Institute",

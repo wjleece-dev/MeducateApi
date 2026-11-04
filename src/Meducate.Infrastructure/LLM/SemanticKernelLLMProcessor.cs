@@ -632,7 +632,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
         {
             Id = Guid.NewGuid(),
             Name = ToTitleCase((discoveredName ?? model.Name).Trim()),
-            Summary = ToSentenceCase(TextCleaner.CleanSummary(model.Summary)),
+            Summary = ToSentenceCase(TextCleaner.LimitToSource(TextCleaner.CleanSummary(model.Summary), rawText)),
             Observations = NormalizeList(model.Observations ?? [], ToSentenceCase),
             Factors = NormalizeList(model.Factors ?? [], ToSentenceCase),
             Actions = TextCleaner.WithoutAftercare(topicType, NormalizeList(model.Actions ?? [], ToSentenceCase)),
@@ -691,7 +691,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             // Name is intentionally preserved from the original — the verifier must not rename topics
             Name = extracted.Name,
             OriginalName = extracted.OriginalName,
-            Summary = ToSentenceCase(TextCleaner.CleanSummary(model.Summary)),
+            Summary = ToSentenceCase(TextCleaner.LimitToSource(TextCleaner.CleanSummary(model.Summary), rawText)),
             Observations = NormalizeList(model.Observations ?? [], ToSentenceCase),
             Factors = NormalizeList(model.Factors ?? [], ToSentenceCase),
             Actions = TextCleaner.WithoutAftercare(extracted.TopicType, NormalizeList(model.Actions ?? [], ToSentenceCase)),

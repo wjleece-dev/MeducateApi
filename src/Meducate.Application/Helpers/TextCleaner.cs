@@ -8,6 +8,7 @@ namespace Meducate.Application.Helpers;
 internal static partial class TextCleaner
 {
     internal const int MaxTags = 8;
+    internal const int ShortSourceChars = 600;
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
@@ -61,6 +62,23 @@ internal static partial class TextCleaner
             ? [.. actions.Where(a => !TopicHelpers.IsAftercareItem(a))]
             : actions;
 
+    // A source of a sentence or two cannot support a five-sentence summary. The model pads these with generic
+    // statements it knows rather than ones the source makes (Enzymes: one source sentence, five summary sentences),
+    // so the summary is held to the number of sentences the source has.
+    internal static string LimitToSource(string summary, string? rawSource)
+    {
+        if (string.IsNullOrWhiteSpace(rawSource))
+            return summary;
+
+        var body = Whitespace().Replace(string.Join(' ', rawSource.Split('\n').Where(l => !l.TrimStart().StartsWith('['))), " ").Trim();
+        if (body.Length is 0 or >= ShortSourceChars)
+            return summary;
+
+        var allowed = Math.Max(1, SentenceBoundary().Split(body).Length);
+        var sentences = SentenceBoundary().Split(summary.Trim());
+        return sentences.Length <= allowed ? summary : string.Join(' ', sentences.Take(allowed));
+    }
+
     internal static bool HasMetaSentence(string summary) => MetaSentence().IsMatch(summary);
 
     internal static List<string> CleanTags(IEnumerable<string> tags) =>
@@ -105,7 +123,7 @@ internal static partial class TextCleaner
         }
 
         var summary = topic.Summary ?? string.Empty;
-        Set(ref summary, CleanSummary(summary));
+        Set(ref summary, LimitToSource(CleanSummary(summary), topic.RawSource));
         topic.Summary = summary;
 
         static List<string> Items(IEnumerable<string>? items) =>
