@@ -440,7 +440,7 @@ internal static class InternalEndpoints
         if (authError is not null) return authError;
 
         count = Math.Clamp(count, 1, 10);
-        rawSourceChars = Math.Clamp(rawSourceChars, 500, 10000);
+        rawSourceChars = Math.Clamp(rawSourceChars, 500, 40000);
 
         var total = await queryRepo.GetServedTopicCountAsync(ct);
         if (total == 0)
