@@ -18,7 +18,17 @@ internal sealed class ETagMiddleware(RequestDelegate next)
         using var buffer = new MemoryStream();
         context.Response.Body = buffer;
 
-        await _next(context);
+        try
+        {
+            await _next(context);
+        }
+        catch
+        {
+            // The buffer is disposed on the way out; leave the real stream in place so the
+            // exception middleware can still write its error response.
+            context.Response.Body = originalBody;
+            throw;
+        }
 
         if (context.Response.StatusCode is >= 200 and < 300 && buffer.Length > 0)
         {

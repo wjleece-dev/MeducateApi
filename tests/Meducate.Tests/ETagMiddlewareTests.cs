@@ -21,6 +21,20 @@ public class ETagMiddlewareTests
     }
 
     [Fact]
+    public async Task TopicPath_WhenHandlerThrows_RestoresTheOriginalBodyStream()
+    {
+        var middleware = new ETagMiddleware(_ => throw new InvalidOperationException("boom"));
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/api/v1/topics";
+        var original = new MemoryStream();
+        context.Response.Body = original;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => middleware.InvokeAsync(context));
+
+        Assert.Same(original, context.Response.Body);
+    }
+
+    [Fact]
     public async Task TopicPath_SetsETagAndCacheControl()
     {
         var middleware = new ETagMiddleware(ctx =>
