@@ -41,6 +41,33 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
                 return Results.Ok(new { topics = count });
             });
+        internalRoutes.MapGet("/internal/topics/stats",
+            async (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            {
+                var authError = CheckToken(http, config, loggerFactory.CreateLogger("Meducate.API.Internal"), "stats");
+                if (authError is not null) return authError;
+
+                var total = (await queryRepo.GetAllTopicNamesAsync(ct)).Count;
+                var uncategorized = await queryRepo.GetUncategorizedTopicsAsync(ct);
+                return Results.Ok(new
+                {
+                    rows = total,
+                    served = await queryRepo.GetServedTopicCountAsync(ct),
+                    seen = (await queryRepo.GetAllSeenTopicNamesAsync(ct)).Count,
+                    uncategorized = uncategorized.Select(t => new { t.Name, t.TopicType, t.NeedsLlmReprocessing }),
+                });
+            });
+        internalRoutes.MapPost("/internal/seen/forget",
+            async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, string[] names, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "forget");
+                if (authError is not null) return authError;
+
+                var removed = await writeRepo.ForgetSeenTopicsAsync(names, ct);
+                logger.LogInformation("Internal: forgot {Count} seen topic names so discovery can pick them up again", removed);
+                return Results.Ok(new { removed });
+            });
         internalRoutes.MapPost("/internal/topics/categorize",
             async (HttpContext http, ITopicWriteRepository writeRepo, Meducate.Domain.Services.ILLMProcessor llm, IConfiguration config, ILoggerFactory loggerFactory, Dictionary<string, string> nameToCategory, CancellationToken ct) =>
             {

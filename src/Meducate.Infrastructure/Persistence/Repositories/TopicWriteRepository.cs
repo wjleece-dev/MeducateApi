@@ -62,6 +62,10 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
                 .SetProperty(c => c.LastSourceRefresh, now), ct);
     }
 
+    // Lets discovery pick these provider titles up again (the deduplication table otherwise blocks them).
+    public async Task<int> ForgetSeenTopicsAsync(IReadOnlyCollection<string> names, CancellationToken ct) =>
+        await _db.SeenTopics.Where(s => names.Contains(s.Name)).ExecuteDeleteAsync(ct);
+
     public async Task<int> SetCategoryAsync(string name, string category, CancellationToken ct) =>
         await _db.HealthTopics.Where(c => c.Name == name)
             .ExecuteUpdateAsync(s => s.SetProperty(c => c.Category, category), ct);

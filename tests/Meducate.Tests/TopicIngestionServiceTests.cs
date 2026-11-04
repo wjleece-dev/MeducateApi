@@ -30,7 +30,7 @@ public class TopicIngestionServiceTests
     };
 
     [Fact]
-    public async Task IngestAsync_DefaultsToOther_WhenClassifyThrows_AndSkipsAdding()
+    public async Task IngestAsync_WhenClassifyThrows_EndsTheRunWithoutRecordingAnythingAsSeen()
     {
         var provider = new FakeProvider("TestSource", [new RawTopicData("New Condition", new string('x', 200), "TestSource")]);
         var queryRepo = new FakeQueryRepo();
@@ -41,6 +41,8 @@ public class TopicIngestionServiceTests
         await service.IngestAsync();
 
         Assert.Empty(writeRepo.Added);
+        // Recording candidates as 'Other' would block them from rediscovery once the model is back.
+        Assert.Empty(writeRepo.SeenTopicsAdded);
     }
 
     [Fact]
@@ -424,6 +426,7 @@ public class TopicIngestionServiceTests
 
         public Task<int> RenameAndRetypeAsync(string from, string to, string newType, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RetypeAsync(string name, string newType, CancellationToken ct) => Task.FromResult(0);
+        public Task<int> ForgetSeenTopicsAsync(IReadOnlyCollection<string> names, CancellationToken ct) => Task.FromResult(0);
         public Task<int> SetCategoryAsync(string name, string category, CancellationToken ct) => Task.FromResult(0);
         public Task<int> ClearIcd11CodesAsync(CancellationToken ct) => Task.FromResult(0);
         public Task<int> SanitizeAllAsync(CancellationToken ct) => Task.FromResult(0);

@@ -87,10 +87,11 @@ internal sealed class TopicIngestionService(
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "LLM topic classification failed, defaulting all to 'Other'");
-                console?.WriteLine($"LLM classify failed: {ex.Message} — defaulting all to 'Other'.");
-                foreach (var topic in uniqueCandidates)
-                    topicTypeMap[topic.Name] = TopicConstants.TopicTypeOther;
+                // Defaulting to 'Other' would record every candidate in SeenTopic as unclassifiable and block it
+                // from rediscovery for good, so an unavailable classifier (quota, outage) ends the run instead.
+                _logger.LogWarning(ex, "LLM topic classification failed; ending the discovery run so nothing is recorded as unclassifiable");
+                console?.WriteLine($"LLM classify failed: {ex.Message} — ending the run, will retry next time.");
+                return;
             }
         }
 
