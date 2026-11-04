@@ -30,7 +30,8 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
         List<string> Groups,
         string? Url,
         string? PrimaryInstitute,
-        List<string> EncyclopediaUrls);
+        List<string> EncyclopediaUrls,
+        Dictionary<string, string>? EncyclopediaTitles = null);
 
     public string SourceName => "MedlinePlus";
 
@@ -49,7 +50,7 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
             // Fetch encyclopedia first — if available, skip the portal page entirely.
             // Portal pages are mostly navigation chrome and link lists; the XML summary
             // is cleaner and the encyclopedia covers the clinical detail.
-            var encyclopediaText = await FetchFirstEncyclopediaArticleAsync(match.EncyclopediaUrls, ct);
+            var encyclopediaText = await FetchFirstEncyclopediaArticleAsync(match.EncyclopediaUrls, match.EncyclopediaTitles, ct);
             string? portalText = null;
             if (string.IsNullOrWhiteSpace(encyclopediaText))
                 portalText = await FetchPageTextAsync(match.Url, MaxPortalPageChars, ct);
@@ -189,36 +190,42 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
                 .Select(w => w.ToLowerInvariant())
                 .ToHashSet();
 
-            var encyclopediaUrls = topic.Elements("site")
+            double TitleOverlap(string siteTitle)
+            {
+                var words = siteTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var matchCount = words.Count(w => titleWords.Contains(w.ToLowerInvariant().TrimEnd('.', ',', ';', ':')));
+                // Ratio rewards focused titles (e.g. "Asthma" ranks above "Allergies, asthma, and dust")
+                return words.Length > 0 ? (double)matchCount / words.Length : 0;
+            }
+
+            var encyclopedia = topic.Elements("site")
                 .Select(s => (
                     Url: s.Attribute("url")?.Value?.Trim() ?? "",
                     SiteTitle: s.Attribute("title")?.Value?.Trim() ?? ""))
                 .Where(s =>
                     (s.Url.Contains("/ency/article/", StringComparison.OrdinalIgnoreCase)
                      || s.Url.Contains("/ency/patientinstructions/", StringComparison.OrdinalIgnoreCase))
-                    && !s.Url.Contains("/spanish/ency/", StringComparison.OrdinalIgnoreCase))
+                    && !s.Url.Contains("/spanish/ency/", StringComparison.OrdinalIgnoreCase)
+                    // An article sharing no word with the topic or its synonyms is about something else
+                    // (the Menstruation topic used to be summarised from the Amenorrhea article).
+                    && TitleOverlap(s.SiteTitle) > 0)
                 .OrderByDescending(s =>
-                {
-                    var words = s.SiteTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    var matchCount = words.Count(w => titleWords.Contains(w.ToLowerInvariant().TrimEnd('.', ',', ';', ':')));
-                    // Ratio rewards focused titles (e.g. "Asthma" ranks above "Allergies, asthma, and dust")
-                    var ratio = words.Length > 0 ? (double)matchCount / words.Length : 0;
                     // /ency/article/ entries are main condition articles; patient instructions are supplementary
-                    var articleBonus = s.Url.Contains("/ency/article/", StringComparison.OrdinalIgnoreCase) ? 0.1 : 0.0;
-                    return ratio + articleBonus;
-                })
-                .Select(s => s.Url)
-                .Distinct()
+                    TitleOverlap(s.SiteTitle) + (s.Url.Contains("/ency/article/", StringComparison.OrdinalIgnoreCase) ? 0.1 : 0.0))
+                .DistinctBy(s => s.Url)
                 .Take(2)
                 .ToList();
 
-            topics.Add(new ParsedTopic(title, alsoCalled, cleanSummary, groups, url, primaryInstitute, encyclopediaUrls));
+            var encyclopediaUrls = encyclopedia.Select(s => s.Url).ToList();
+            var encyclopediaTitles = encyclopedia.ToDictionary(s => s.Url, s => s.SiteTitle);
+
+            topics.Add(new ParsedTopic(title, alsoCalled, cleanSummary, groups, url, primaryInstitute, encyclopediaUrls, encyclopediaTitles));
         }
 
         return topics;
     }
 
-    private async Task<string?> FetchFirstEncyclopediaArticleAsync(List<string> urls, CancellationToken ct)
+    private async Task<string?> FetchFirstEncyclopediaArticleAsync(List<string> urls, Dictionary<string, string>? titles, CancellationToken ct)
     {
         var parts = new List<string>();
         foreach (var url in urls)
@@ -233,7 +240,8 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
                 var label = url.Contains("/ency/patientinstructions/", StringComparison.OrdinalIgnoreCase)
                     ? "Patient Instructions"
                     : "Encyclopedia Article";
-                parts.Add($"[{label}]\n{text}");
+                var heading = titles is not null && titles.TryGetValue(url, out var title) ? $"{label}: {title}" : label;
+                parts.Add($"[{heading}]\n{text}");
             }
         }
         return parts.Count > 0 ? string.Join("\n\n---\n\n", parts) : null;

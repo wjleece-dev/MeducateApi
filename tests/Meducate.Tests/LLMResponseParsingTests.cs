@@ -191,6 +191,25 @@ public class LLMResponseParsingTests
         Assert.Contains(asthma.EncyclopediaUrls, u => u.Contains("/ency/article/000141.htm"));
     }
 
+    [Fact]
+    public void ParseTopicsXml_IgnoresEncyclopediaArticlesAboutSomethingElse()
+    {
+        const string xml = """
+            <health-topics>
+              <health-topic title="Menstruation" language="English" url="https://medlineplus.gov/menstruation.html">
+                <full-summary>Menstruation is the monthly shedding of the uterine lining; this summary is long enough to be kept.</full-summary>
+                <site title="Amenorrhea" url="https://medlineplus.gov/ency/article/001219.htm" />
+                <site title="Menstruation" url="https://medlineplus.gov/ency/article/002000.htm" />
+              </health-topic>
+            </health-topics>
+            """;
+
+        var menstruation = Assert.Single(MedlinePlusDataProvider.ParseTopicsXml(xml));
+
+        Assert.Equal(["https://medlineplus.gov/ency/article/002000.htm"], menstruation.EncyclopediaUrls);
+        Assert.Equal("Menstruation", menstruation.EncyclopediaTitles!["https://medlineplus.gov/ency/article/002000.htm"]);
+    }
+
     // --- PubMedDataProvider.ParseSearchResponse / ParseAbstractsXml / AppendApiKey ---
 
     [Fact]
