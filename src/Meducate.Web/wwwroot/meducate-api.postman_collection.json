@@ -315,7 +315,7 @@
               ],
               "query": []
             },
-            "description": "Reverse lookup: the topic carrying a given WHO ICD-11 code (the `icd11Code` field on every coded topic). About three in four topics have a code. 404 if none matches."
+            "description": "Reverse lookup: the topic carrying a given WHO ICD-11 code (the `icd11Code` field on every coded topic). About half of all topics have a code: only diagnosable types are coded, and only when WHO's own entry is the topic. 404 if none matches."
           },
           "response": []
         }

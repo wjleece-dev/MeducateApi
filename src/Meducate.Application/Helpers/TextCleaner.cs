@@ -80,8 +80,11 @@ internal static partial class TextCleaner
         if (match.Success)
             return Clean(match.Groups[1].Value);
 
-        return rawText.Contains("[MedlinePlus]", StringComparison.Ordinal)
-            ? "MedlinePlus, U.S. National Library of Medicine"
+        if (rawText.Contains("[MedlinePlus]", StringComparison.Ordinal))
+            return "MedlinePlus, U.S. National Library of Medicine";
+
+        return rawText.Contains("[PubMed]", StringComparison.Ordinal)
+            ? "PubMed, U.S. National Library of Medicine"
             : null;
     }
 
