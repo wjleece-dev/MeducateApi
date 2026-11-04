@@ -57,6 +57,15 @@ internal static class InternalEndpoints
                     uncategorized = uncategorized.Select(t => new { t.Name, t.TopicType, t.NeedsLlmReprocessing }),
                 });
             });
+        internalRoutes.MapGet("/internal/seen",
+            async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, string name, CancellationToken ct) =>
+            {
+                var authError = CheckToken(http, config, loggerFactory.CreateLogger("Meducate.API.Internal"), "seen");
+                if (authError is not null) return authError;
+
+                var rows = await writeRepo.FindSeenTopicsAsync(name, ct);
+                return Results.Ok(rows.Select(s => new { s.Name, s.Status, s.TopicType, s.FirstSeen }));
+            });
         internalRoutes.MapPost("/internal/seen/forget",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, string[] names, CancellationToken ct) =>
             {

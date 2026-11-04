@@ -62,6 +62,9 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
                 .SetProperty(c => c.LastSourceRefresh, now), ct);
     }
 
+    public async Task<List<SeenTopic>> FindSeenTopicsAsync(string contains, CancellationToken ct) =>
+        await _db.SeenTopics.AsNoTracking().Where(s => EF.Functions.ILike(s.Name, "%" + contains + "%")).OrderBy(s => s.Name).Take(50).ToListAsync(ct);
+
     // Lets discovery pick these provider titles up again (the deduplication table otherwise blocks them).
     public async Task<int> ForgetSeenTopicsAsync(IReadOnlyCollection<string> names, CancellationToken ct) =>
         await _db.SeenTopics.Where(s => names.Contains(s.Name)).ExecuteDeleteAsync(ct);
