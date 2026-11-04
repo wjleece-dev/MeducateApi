@@ -55,6 +55,30 @@ public class TextCleanerTests
         Assert.Null(TextCleaner.SourceOrganisation("no tag here"));
     }
 
+    [Fact]
+    public void SanitizeTopic_FixesStoredDefectsAndIsIdempotent()
+    {
+        var topic = new HealthTopic
+        {
+            Name = "Constipation",
+            Summary = "Constipation is common. NIH: National Cancer Institute",
+            Observations = ["A child&#39;s underwear", "a child's underwear", "Pain."],
+            Factors = [],
+            Actions = [],
+            Tags = ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+            Citations = [],
+            RawSource = "[Source: National Cancer Institute]",
+        };
+
+        Assert.True(TextCleaner.SanitizeTopic(topic));
+        Assert.Equal("Constipation is common.", topic.Summary);
+        Assert.Equal(["A child's underwear", "Pain"], topic.Observations);
+        Assert.Equal(8, topic.Tags!.Count);
+        Assert.Equal(["National Cancer Institute"], topic.Citations);
+
+        Assert.False(TextCleaner.SanitizeTopic(topic));
+    }
+
     [Theory]
     [InlineData("Follow-up appointment with cardiologist", true)]
     [InlineData("Take prescribed medicines to prevent blood clots", true)]

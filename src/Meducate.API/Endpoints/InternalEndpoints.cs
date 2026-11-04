@@ -39,6 +39,17 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
                 return Results.Ok(new { topics = count });
             });
+        app.MapPost("/internal/topics/sanitize",
+            async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "sanitize");
+                if (authError is not null) return authError;
+
+                var changed = await writeRepo.SanitizeAllAsync(ct);
+                logger.LogInformation("Internal: sanitised {Count} stored topics", changed);
+                return Results.Ok(new { changed });
+            });
         app.MapPost("/internal/topics/retype",
             (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, Dictionary<string, string> nameToType, CancellationToken ct)
                 => HandleTopicRetype(http, writeRepo, config, loggerFactory, nameToType, ct));

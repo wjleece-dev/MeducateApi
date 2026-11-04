@@ -69,6 +69,42 @@ internal static partial class TextCleaner
         return match is { Success: true } ? Clean(match.Groups[1].Value) : null;
     }
 
+    // Applies the same clean-up the extraction pipeline now does to a stored topic.
+    // Returns true when anything changed. Idempotent.
+    internal static bool SanitizeTopic(Meducate.Domain.Entities.HealthTopic topic)
+    {
+        var changed = false;
+
+        void Set(ref string value, string cleaned)
+        {
+            if (!string.Equals(value, cleaned, StringComparison.Ordinal)) { value = cleaned; changed = true; }
+        }
+
+        void SetList(ref List<string>? value, List<string> cleaned)
+        {
+            if (value is null || !value.SequenceEqual(cleaned, StringComparer.Ordinal)) { value = cleaned; changed = true; }
+        }
+
+        var summary = topic.Summary ?? string.Empty;
+        Set(ref summary, CleanSummary(summary));
+        topic.Summary = summary;
+
+        static List<string> Items(IEnumerable<string>? items) =>
+            [.. (items ?? []).Select(CleanItem).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase)];
+
+        var observations = topic.Observations; SetList(ref observations, Items(topic.Observations)); topic.Observations = observations;
+        var factors = topic.Factors; SetList(ref factors, Items(topic.Factors)); topic.Factors = factors;
+        var actions = topic.Actions; SetList(ref actions, Items(topic.Actions)); topic.Actions = actions;
+        var tags = topic.Tags; SetList(ref tags, CleanTags(topic.Tags ?? [])); topic.Tags = tags;
+
+        var citations = Items(topic.Citations);
+        if (citations.Count == 0 && SourceOrganisation(topic.RawSource) is { } organisation)
+            citations.Add(organisation);
+        var current = topic.Citations; SetList(ref current, citations); topic.Citations = current;
+
+        return changed;
+    }
+
     private static bool EndsSentence(string s) => s.TrimEnd().EndsWithAny('.', '!', '?', ')', '"');
 
     private static bool EndsWithAny(this string s, params char[] chars) => s.Length > 0 && chars.Contains(s[^1]);

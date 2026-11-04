@@ -1,3 +1,4 @@
+using Meducate.Application.Helpers;
 using Meducate.Domain.Entities;
 using Meducate.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,24 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
                 .SetProperty(c => c.NeedsLlmReprocessing, true)
                 .SetProperty(c => c.ReprocessAttempts, 0)
                 .SetProperty(c => c.LastSourceRefresh, now), ct);
+    }
+
+    // Applies TextCleaner to every stored topic; changed topics get a new version so /topics/changes reports them.
+    public async Task<int> SanitizeAllAsync(CancellationToken ct)
+    {
+        var changed = 0;
+        foreach (var topic in await _db.HealthTopics.ToListAsync(ct))
+        {
+            if (!TextCleaner.SanitizeTopic(topic))
+                continue;
+
+            topic.LastUpdated = DateTime.UtcNow;
+            topic.Version++;
+            changed++;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return changed;
     }
 
     // Makes the next refresh run re-fetch every topic's source, re-extracting any whose text changed
