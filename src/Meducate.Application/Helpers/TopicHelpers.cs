@@ -174,6 +174,10 @@ internal static class TopicHelpers
             if (word.Length >= 2 && word.All(c => !char.IsLetter(c) || char.IsUpper(c)))
                 return word;
 
+            // Mixed-case terms such as PrEP or mRNA are deliberate; do not flatten them.
+            if (word.Length >= 3 && char.IsLetter(word[0]) && word.Skip(1).Any(char.IsUpper) && word.Any(char.IsLower) && !word.Contains('-') && !word.Contains('\''))
+                return word;
+
             if (word.EndsWith("'s", StringComparison.OrdinalIgnoreCase))
             {
                 var basePart = word[..^2];

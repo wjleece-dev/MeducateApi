@@ -48,6 +48,23 @@ public class TextCleanerTests
     }
 
     [Fact]
+    public void WithoutAftercare_DropsRecoveryStepsFromProceduresAndTestsOnly()
+    {
+        List<string> items = ["Chest pain from blocked arteries", "Take prescribed medications to prevent blood clots", "Follow-up appointment with cardiologist"];
+
+        Assert.Equal(["Chest pain from blocked arteries"], TextCleaner.WithoutAftercare("Procedure", items));
+        Assert.Equal(["Chest pain from blocked arteries"], TextCleaner.WithoutAftercare("Diagnostic Test", items));
+        Assert.Equal(items, TextCleaner.WithoutAftercare("Disease", items));
+    }
+
+    [Theory]
+    [InlineData("HIV: PrEP and PEP", "HIV: PrEP And PEP")]
+    [InlineData("high blood pressure", "High Blood Pressure")]
+    [InlineData("COPD", "COPD")]
+    public void ToTitleCase_KeepsMixedCaseAcronyms(string input, string expected) =>
+        Assert.Equal(expected, TopicHelpers.ToTitleCase(input));
+
+    [Fact]
     public void SourceOrganisation_ReadsProviderTag()
     {
         Assert.Equal("National Heart, Lung, and Blood Institute",

@@ -54,6 +54,13 @@ internal static partial class TextCleaner
         return result.Length > 0 && !EndsSentence(result) ? result + "." : result;
     }
 
+    // Procedure and test "actions" are what they treat or test for. Recovery and self-care steps the model
+    // keeps copying in from discharge pages are removed here rather than paid for again with another retry.
+    internal static List<string> WithoutAftercare(string? topicType, List<string> actions) =>
+        topicType is "Procedure" or "Diagnostic Test"
+            ? [.. actions.Where(a => !TopicHelpers.IsAftercareItem(a))]
+            : actions;
+
     internal static bool HasMetaSentence(string summary) => MetaSentence().IsMatch(summary);
 
     internal static List<string> CleanTags(IEnumerable<string> tags) =>
@@ -103,7 +110,7 @@ internal static partial class TextCleaner
 
         var observations = topic.Observations; SetList(ref observations, Items(topic.Observations)); topic.Observations = observations;
         var factors = topic.Factors; SetList(ref factors, Items(topic.Factors)); topic.Factors = factors;
-        var actions = topic.Actions; SetList(ref actions, Items(topic.Actions)); topic.Actions = actions;
+        var actions = topic.Actions; SetList(ref actions, WithoutAftercare(topic.TopicType, Items(topic.Actions))); topic.Actions = actions;
         var tags = topic.Tags; SetList(ref tags, CleanTags(topic.Tags ?? [])); topic.Tags = tags;
 
         var citations = Items(topic.Citations);
