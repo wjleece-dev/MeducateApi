@@ -71,7 +71,7 @@
                         <strong>This action is permanent.</strong> All your data will be deleted and cannot be recovered.
                     </div>
                     <p>To confirm, type your email address below:</p>
-                    <input type="email" class="form-control" placeholder="@_userStatus?.Email" @bind="_confirmEmail" @ref="_deleteEmailInput" />
+                    <input type="email" class="form-control" placeholder="@_userStatus?.Email" @bind="_confirmEmail" @bind:event="oninput" @ref="_deleteEmailInput" />
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
