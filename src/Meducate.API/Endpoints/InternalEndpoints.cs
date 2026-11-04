@@ -279,8 +279,13 @@ internal static class InternalEndpoints
         var result = topics.Select(t => new
         {
             t.Name,
+            t.OriginalName,
             t.Category,
             t.TopicType,
+            t.Icd11Code,
+            t.Version,
+            t.LastUpdated,
+            t.ReprocessAttempts,
             t.Summary,
             observations = t.Observations ?? [],
             factors      = t.Factors ?? [],
