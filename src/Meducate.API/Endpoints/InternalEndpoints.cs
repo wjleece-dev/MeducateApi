@@ -69,6 +69,37 @@ internal static class InternalEndpoints
                     xRealIp = http.Request.Headers["X-Real-IP"].ToString(),
                 });
             });
+        internalRoutes.MapPost("/internal/topics/rename",
+            async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, List<RenameRequest> renames, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "rename");
+                if (authError is not null) return authError;
+
+                var results = new List<object>();
+                foreach (var r in renames)
+                {
+                    var type = RetypeTargets.FirstOrDefault(t => string.Equals(t, r.Type, StringComparison.OrdinalIgnoreCase));
+                    if (type is null || string.IsNullOrWhiteSpace(r.To))
+                    {
+                        results.Add(new { r.From, error = "Invalid target name or type." });
+                        continue;
+                    }
+
+                    try
+                    {
+                        results.Add(new { r.From, r.To, updated = await writeRepo.RenameAndRetypeAsync(r.From, r.To.Trim(), type, ct) });
+                    }
+                    catch (Exception ex)
+                    {
+                        // Typically a unique-name collision; the caller reorders and retries.
+                        results.Add(new { r.From, r.To, error = ex.GetBaseException().Message });
+                    }
+                }
+
+                logger.LogInformation("Internal: renamed/retyped {Count} topics", results.Count);
+                return Results.Ok(results);
+            });
         internalRoutes.MapPost("/internal/topics/retype",
             (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, Dictionary<string, string> nameToType, CancellationToken ct)
                 => HandleTopicRetype(http, writeRepo, config, loggerFactory, nameToType, ct));
@@ -201,6 +232,9 @@ internal static class InternalEndpoints
 
         return Results.Ok(new { total, skip = resolvedSkip, count = topics.Count, topics = result });
     }
+
+    // Body item for /internal/topics/rename: restore a topic's provider title and correct its type.
+    internal sealed record RenameRequest(string From, string To, string Type);
 
     private static readonly HashSet<string> RetypeTargets = new(StringComparer.OrdinalIgnoreCase)
     {

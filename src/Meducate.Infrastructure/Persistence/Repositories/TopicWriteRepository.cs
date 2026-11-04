@@ -29,6 +29,22 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
             .ToListAsync(ct);
     }
 
+    public async Task<int> RenameAndRetypeAsync(string from, string to, string newType, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        return await _db.HealthTopics
+            .Where(c => c.Name == from)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.Name, to)
+                .SetProperty(c => c.TopicType, newType)
+                .SetProperty(c => c.Category, (string?)null)
+                .SetProperty(c => c.Icd11Code, (string?)null)
+                .SetProperty(c => c.Icd11Title, (string?)null)
+                .SetProperty(c => c.NeedsLlmReprocessing, true)
+                .SetProperty(c => c.ReprocessAttempts, 0)
+                .SetProperty(c => c.LastSourceRefresh, now), ct);
+    }
+
     public async Task<int> RetypeAsync(string name, string newType, CancellationToken ct)
     {
         var now = DateTime.UtcNow;

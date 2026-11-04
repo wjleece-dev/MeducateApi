@@ -578,45 +578,14 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
 
         var typeInstructions = GetTypeInstructions(topicType);
 
+        // A discovered name comes from the provider's own title and is authoritative. The model used to be asked
+        // to "identify the condition", which renamed tests, therapies and nutrients into unrelated diseases
+        // (Kidney Tests became "Kidney Disease", Potassium became "Chronic Kidney Disease").
         var nameInstruction = discoveredName is not null
             ? $"""
-              Step 1: The discovered topic name is "{discoveredName}". Determine the
-              MEDICAL CONDITION described by this page. The name must identify a specific
-              diagnosable condition, disease, disorder, syndrome, injury, or symptom —
-              never an anatomy term, body part, or vague subject.
-
-              NAMING RULES:
-              - Use standard medical NOUN FORM for conditions:
-                "Dislocated Shoulder" → "Shoulder Dislocation"
-                "Torn Meniscus" → "Meniscus Tear"
-                "Collapsed Lung" → "Pneumothorax"
-                "Broken Arm" → "Arm Fracture"
-              - Drop SEVERITY and TEMPORAL qualifiers that don't change the condition:
-                "Acute Bronchitis" → "Bronchitis"
-                "Chronic Kidney Disease" → "Kidney Disease"
-                "Severe Depression" → "Depression"
-                EXCEPTION: Keep well-known abbreviations (COPD, not "Obstructive Pulmonary Disease")
-              - KEEP qualifiers that identify a DISTINCT condition:
-                "Diabetic Retinopathy" (not just "Retinopathy")
-                "Breast Cancer" (not just "Cancer")
-                "Type 1 Diabetes" (distinct from Type 2)
-                "Gestational Diabetes" (distinct condition)
-              - Use PLAIN ENGLISH that a general audience would recognize:
-                "Heart Attack" not "Myocardial Infarction"
-                "High Blood Pressure" not "Hypertension"
-                But use the medical term when it IS the common name:
-                "Pneumonia", "Asthma", "Epilepsy"
-              - PREFER well-known abbreviations over expanded forms:
-                "COPD" not "Chronic Obstructive Pulmonary Disease"
-                "HIV" not "Human Immunodeficiency Virus"
-                "PTSD" not "Post-Traumatic Stress Disorder"
-
-              FORMATTING:
-              - PREFER well-known abbreviations: COPD, HIV, PTSD (not expanded forms)
-              - PLURAL form for categories ("Disorders", "Injuries", "Infections") but singular for specific named conditions ("Anemia", "Appendicitis")
-              - AMERICAN ENGLISH spelling ("Esophagus" not "Oesophagus")
-
-              Extract information about this condition as described in the source text.
+              Step 1: The topic name is "{discoveredName}", taken from the source provider. Keep it exactly
+              as given and describe what that page is about, whatever kind of topic it is (a condition, test,
+              procedure, medicine, nutrient or general subject). Do not rename it.
               """
             : """
               Step 1: Identify the MEDICAL CONDITION described in this text. The name
@@ -662,7 +631,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
         var topic = new HealthTopic
         {
             Id = Guid.NewGuid(),
-            Name = ToTitleCase(model.Name.Trim()),
+            Name = ToTitleCase((discoveredName ?? model.Name).Trim()),
             Summary = ToSentenceCase(TextCleaner.CleanSummary(model.Summary)),
             Observations = NormalizeList(model.Observations ?? [], ToSentenceCase),
             Factors = NormalizeList(model.Factors ?? [], ToSentenceCase),

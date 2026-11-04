@@ -348,6 +348,7 @@ public class TopicRefreshServiceTests
         public void RevertChanges(HealthTopic topic) => Reverted.Add(topic);
         public void RevertChanges(IEnumerable<HealthTopic> topics) => Reverted.AddRange(topics);
         public Task AddSeenTopicsAsync(IEnumerable<SeenTopic> topics, CancellationToken ct) => Task.CompletedTask;
+        public Task<int> RenameAndRetypeAsync(string from, string to, string newType, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RetypeAsync(string name, string newType, CancellationToken ct) => Task.FromResult(0);
         public Task<int> SanitizeAllAsync(CancellationToken ct) => Task.FromResult(0);
         public Task<int> ForceSourceRefreshAsync(CancellationToken ct) => Task.FromResult(0);
