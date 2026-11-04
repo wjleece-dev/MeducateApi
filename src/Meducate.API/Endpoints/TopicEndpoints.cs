@@ -46,7 +46,7 @@ internal static class TopicEndpoints
         })
         .WithName("ListTopicChanges")
         .WithSummary("List topics added or updated since a given time")
-        .WithDescription("Returns topics added or updated since the given `since` timestamp (ISO 8601, e.g. 2026-08-01T00:00:00Z), most recent first. `changeType` is \"Added\" for topics never reprocessed since creation, otherwise \"Updated\" — an approximation, not an exact add/update log. Removed topics are not currently tracked by this endpoint.")
+        .WithDescription("Returns topics added or updated since the given `since` timestamp (ISO 8601, e.g. 2026-08-01T00:00:00Z), most recent first. `changeType` is \"Added\" for topics never reprocessed since creation, otherwise \"Updated\", an approximation rather than an exact add/update log. Removed topics are not currently tracked by this endpoint.")
         .Produces<PaginatedResponse<TopicChangeItem>>()
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithTags("Topics");

@@ -68,27 +68,27 @@
             <hr>
 
             <h2 class="fw-semibold">Option 1: scrape the primary sources yourself</h2>
-            <p>MedlinePlus and PubMed are free, public, and authoritative &mdash; the U.S. National Library of Medicine publishes both. Nothing stops you pointing a scraper at MedlinePlus and building your own dataset from it.</p>
+            <p>MedlinePlus and PubMed are free, public, and authoritative, and the U.S. National Library of Medicine publishes both. Nothing stops you pointing a scraper at MedlinePlus and building your own dataset from it.</p>
             <p>The API cost is $0. The real cost shows up afterward: MedlinePlus is written for people to read, not for code to parse, so you're writing and maintaining an HTML parser that breaks whenever the site's markup changes. Then you're building your own categorisation, your own type classification, your own refresh schedule to catch new and retired topics. None of that is a weekend project, and none of it stops being work once it ships &mdash; it's now a system you own indefinitely.</p>
             <p>This is the right call if the dataset you need is narrow and stable enough that the one-time build is cheap, or if you specifically need content MedlinePlus has that no structured API currently exposes.</p>
 
             <hr>
 
             <h2 class="fw-semibold">Option 2: commercial clinical data providers</h2>
-            <p>There's a tier of vendors selling clinically validated data for actual clinical use &mdash; diagnostic support, symptom assessment engines, drug interaction checking with regulatory backing. That validation is real, expensive work, and it's priced like it: typically a sales conversation and a contract, not a free tier you sign up for at 11pm.</p>
-            <p>If you're building something that gives clinical recommendations or supports a clinician's decisions, this is the category you actually need &mdash; not because free options are worse, but because that use case requires the clinical validation these vendors specifically provide, and general-purpose educational APIs explicitly don't.</p>
+            <p>There's a tier of vendors selling clinically validated data for actual clinical use: diagnostic support, symptom assessment engines, drug interaction checking with regulatory backing. That validation is real, expensive work, and it's priced like it: typically a sales conversation and a contract, not a free tier you sign up for at 11pm.</p>
+            <p>If you're building something that gives clinical recommendations or supports a clinician's decisions, this is the category you actually need, not because free options are worse but because that use case requires the clinical validation these vendors specifically provide, and general-purpose educational APIs explicitly don't.</p>
 
             <hr>
 
             <h2 class="fw-semibold">Option 3: free-tier structured APIs (where Meducate fits)</h2>
-            <p>The middle option: a free API that's already done the scraping, structuring, and categorisation work for you, for the use cases that need accurate general information rather than clinical validation &mdash; health education content, informational lookups, reference and training tools.</p>
+            <p>The middle option: a free API that's already done the scraping, structuring, and categorisation work for you, for the use cases that need accurate general information rather than clinical validation: health education content, informational lookups, reference and training tools.</p>
             <p>Meducate falls here. It's free with 1,000 requests a day and no credit card, sourced from MedlinePlus and PubMed, reprocessed daily, and classified into topic types and categories automatically. The trade you're making versus scraping it yourself: you give up owning the pipeline, in exchange for not having to build or maintain one.</p>
-            <p>Being fair about the limits: it's built for the same "explain, not diagnose" scope MedlinePlus itself covers &mdash; not a clinical-grade dataset, and not a fit for anything requiring diagnostic support or regulatory-backed accuracy. Within that scope, it's meant to be the version of "scrape MedlinePlus yourself" that someone already built and keeps current.</p>
+            <p>Being fair about the limits: it's built for the same "explain, not diagnose" scope MedlinePlus itself covers. It is not a clinical-grade dataset, and not a fit for anything requiring diagnostic support or regulatory-backed accuracy. Within that scope, it's meant to be the version of "scrape MedlinePlus yourself" that someone already built and keeps current.</p>
 
             <hr>
 
             <h2 class="fw-semibold">Picking between them</h2>
-            <p>Building it yourself makes sense for a narrow, stable dataset where the one-time cost is genuinely small. A commercial clinical vendor is the right call the moment the product gives clinical advice. For everything in between &mdash; health education apps, informational content, training and reference tools &mdash; a free structured API is usually the fastest path to something real, without a maintenance burden or a sales call attached.</p>
+            <p>Building it yourself makes sense for a narrow, stable dataset where the one-time cost is genuinely small. A commercial clinical vendor is the right call the moment the product gives clinical advice. For everything in between (health education apps, informational content, training and reference tools), a free structured API is usually the fastest path to something real, without a maintenance burden or a sales call attached.</p>
 
             <p class="mt-4">
                 <a href="/register" class="btn btn-primary me-2">Get your free API key. 1,000 requests/day, no credit card required.</a>

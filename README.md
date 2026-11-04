@@ -9,29 +9,29 @@
 ![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?logo=blazor)
 ![Railway](https://img.shields.io/badge/Railway-Deployed-0B0D0E?logo=railway)
 
-<img src="docs/swagger-preview.png" alt="MeducateAPI Swagger docs — Topics endpoints" width="800">
+<img src="docs/swagger-preview.png" alt="MeducateAPI Swagger docs, Topics endpoints" width="800">
 
 ## What It Does
 
-MeducateAPI automatically discovers and aggregates medical topics from authoritative sources like MedlinePlus and PubMed, then uses LLM processing to extract structured data — summaries, symptoms, risk factors, and treatments — all classified into body-system and content-type categories. The result is a clean REST API that developers can use to build health education tools without wrangling raw medical data themselves.
+MeducateAPI automatically discovers and aggregates medical topics from authoritative sources like MedlinePlus and PubMed, then uses LLM processing to extract structured data (summaries, symptoms, risk factors, and treatments), all classified into body-system and content-type categories. The result is a clean REST API that developers can use to build health education tools without wrangling raw medical data themselves.
 
 ## Live
 
-- **Web Dashboard** — [meducateapi.com](https://meducateapi.com)
-- **REST API** — [api.meducateapi.com](https://api.meducateapi.com)
+- **Web Dashboard**: [meducateapi.com](https://meducateapi.com)
+- **REST API**: [api.meducateapi.com](https://api.meducateapi.com)
 
 ## Key Features
 
-- **Magic-link authentication** — passwordless email sign-in with cookie-based sessions
-- **API key management** — create, rename, and revoke keys per organisation (max 5 active)
-- **Rate limiting** — two-tier system: 60 req/min per key + configurable daily limits with 80% usage alerts
-- **Automated topic discovery** — daily Hangfire jobs fetch new topics from MedlinePlus at 2 AM UTC
-- **Automated topic refresh** — existing topics re-processed daily at 3 AM UTC for accuracy
-- **Nightly drift detection** — a rotating batch of live topics is re-checked against their original source text each night; low keyword overlap flags likely hallucination or staleness, and structural failures (missing fields, invalid categories) trigger an email alert
-- **Topic classification** — LLM-powered categorisation into 26 standardised medical categories
-- **ICD-11 coding** — diagnosable topics (Disease, Disorder, Syndrome, Symptom, Mental Health) are matched against the WHO ICD-11 API for a real, verifiable diagnostic code — not LLM-generated
-- **OpenAPI spec and Postman collection** — full OpenAPI 3 document at `/swagger/v1/swagger.json`, plus a ready-made Postman collection with tests
-- **Usage dashboard** — Blazor Server UI for managing keys, viewing usage, and browsing docs
+- **Magic-link authentication**: passwordless email sign-in with cookie-based sessions
+- **API key management**: create, rename, and revoke keys per organisation (max 5 active)
+- **Rate limiting**: two-tier system: 60 req/min per key + configurable daily limits with 80% usage alerts
+- **Automated topic discovery**: daily Hangfire jobs fetch new topics from MedlinePlus at 2 AM UTC
+- **Automated topic refresh**: existing topics re-processed daily at 3 AM UTC for accuracy
+- **Nightly drift detection**: a rotating batch of live topics is re-checked against their original source text each night; low keyword overlap flags likely hallucination or staleness, and structural failures (missing fields, invalid categories) trigger an email alert
+- **Topic classification**: LLM-powered categorisation into 26 standardised medical categories
+- **ICD-11 coding**: diagnosable topics (Disease, Disorder, Syndrome, Symptom, Mental Health) are matched against the WHO ICD-11 API for a real, verifiable diagnostic code, not LLM-generated
+- **OpenAPI spec and Postman collection**: full OpenAPI 3 document at `/swagger/v1/swagger.json`, plus a ready-made Postman collection with tests
+- **Usage dashboard**: Blazor Server UI for managing keys, viewing usage, and browsing docs
 
 ## Architecture
 
@@ -79,7 +79,7 @@ The project follows **Clean Architecture** with four layers, each depending only
 
 | Layer | Project | Responsibility |
 |---|---|---|
-| **Domain** | `Meducate.Domain` | Entities, repository interfaces, service contracts — zero external dependencies |
+| **Domain** | `Meducate.Domain` | Entities, repository interfaces, service contracts, zero external dependencies |
 | **Application** | `Meducate.Application` | Business logic, Hangfire jobs, ingestion/refresh orchestration, DTOs |
 | **Infrastructure** | `Meducate.Infrastructure` | EF Core + PostgreSQL, Semantic Kernel + OpenAI, Resend email, API key hashing |
 | **API / Web** | `Meducate.API` / `Meducate.Web` | Minimal API endpoints, middleware pipeline, Blazor Server dashboard |
@@ -201,11 +201,11 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 }
 ```
 
-> Response field names adapt to topic type — for example, a Symptom returns `relatedSymptoms`, `associatedConditions`, and `management` instead of `symptoms`, `causes`, and `treatments`.
+> Response field names adapt to topic type: for example, a Symptom returns `relatedSymptoms`, `associatedConditions`, and `management` instead of `symptoms`, `causes`, and `treatments`.
 
 ## Design Decisions
 
-**Semantic Kernel** was chosen over direct OpenAI SDK calls because it provides a clean abstraction for prompt orchestration and makes it straightforward to swap models or add prompt filters without touching business logic. **Hangfire** handles the daily discovery and refresh pipeline — its PostgreSQL-backed persistence means jobs survive restarts, and the built-in dashboard makes it easy to monitor and retry failures. **Magic-link auth** eliminates password management entirely, which is appropriate for a developer-facing tool where security matters but registration friction should be minimal. The overall **Clean Architecture** keeps the domain free of infrastructure concerns, so the data providers, LLM processor, and persistence layer can all be replaced independently — useful when external APIs change or better models become available.
+**Semantic Kernel** was chosen over direct OpenAI SDK calls because it provides a clean abstraction for prompt orchestration and makes it straightforward to swap models or add prompt filters without touching business logic. **Hangfire** handles the daily discovery and refresh pipeline: its PostgreSQL-backed persistence means jobs survive restarts, and the built-in dashboard makes it easy to monitor and retry failures. **Magic-link auth** eliminates password management entirely, which is appropriate for a developer-facing tool where security matters but registration friction should be minimal. The overall **Clean Architecture** keeps the domain free of infrastructure concerns, so the data providers, LLM processor, and persistence layer can all be replaced independently, which is useful when external APIs change or better models become available.
 
 ## Roadmap
 
@@ -218,4 +218,4 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 - SDKs / client libraries
 
 **Infrastructure**
-- Observability dashboards / APM (structured JSON logging in production already ships — this is the next layer on top)
+- Observability dashboards / APM (structured JSON logging in production already ships, and this is the next layer on top)
