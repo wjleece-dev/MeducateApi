@@ -215,6 +215,75 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
         Assert.False(string.IsNullOrWhiteSpace(keyDoc.RootElement.GetProperty("apiKey").GetString()));
     }
 
+    // Everything the signed-in dashboard does, end to end against the real database: sign in again with a
+    // magic link, create and use a key, read usage, rename, revoke, sign out, delete the account.
+    [Fact]
+    public async Task SignedInLifecycle_KeyUseUsageRenameRevokeSignOutAndAccountDeletion()
+    {
+        var email = $"lifecycle-{Guid.NewGuid():N}@example.com";
+
+        async Task<HttpClient> SignInAsync(string mode, string address)
+        {
+            var anonymous = NewClientWithCsrfHeader(factory);
+            var register = await anonymous.PostAsJsonAsync("/api/v1/users/register", new { email = address, acceptedTerms = true, mode });
+            Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+            var token = QueryHelpers.ParseQuery(new Uri(factory.EmailService.LastVerificationUrl!).Query)["token"].ToString();
+            var verify = await anonymous.PostAsJsonAsync("/api/v1/users/verify", new { token });
+            Assert.Equal(HttpStatusCode.OK, verify.StatusCode);
+
+            var session = NewClientWithCsrfHeader(factory);
+            session.DefaultRequestHeaders.Add("Cookie", ExtractSetCookieValue(verify, "meducateapi_auth")!);
+            return session;
+        }
+
+        var session = await SignInAsync("create", email);
+        var orgId = (await (await session.PostAsJsonAsync("/api/v1/orgs", new { organisationName = "Lifecycle Org" })).Content.ReadAsStringAsync()).Trim('"');
+
+        using var created = JsonDocument.Parse(await (await session.PostAsJsonAsync($"/api/v1/orgs/{orgId}/keys", new { name = "First key" })).Content.ReadAsStringAsync());
+        var rawKey = created.RootElement.GetProperty("apiKey").GetString()!;
+
+        // The key works, and responses carry its limits.
+        var keyClient = NewClient(factory);
+        keyClient.DefaultRequestHeaders.Add("X-Api-Key", rawKey);
+        var use = await keyClient.GetAsync("/api/v1/topics/types");
+        Assert.Equal(HttpStatusCode.OK, use.StatusCode);
+        Assert.Equal("1000", use.Headers.GetValues("X-RateLimit-Limit").Single());
+
+        // It shows up in the key list, with the new name after a rename.
+        using var list = JsonDocument.Parse(await session.GetStringAsync($"/api/v1/orgs/{orgId}/keys"));
+        var key = Assert.Single(list.RootElement.EnumerateArray());
+        var keyGuid = key.GetProperty("id").GetGuid();
+        Assert.Equal("First key", key.GetProperty("name").GetString());
+
+        var rename = await session.PatchAsJsonAsync($"/api/v1/orgs/{orgId}/keys/{keyGuid}", new { name = "Renamed key" });
+        Assert.Equal(HttpStatusCode.NoContent, rename.StatusCode);
+        using var renamed = JsonDocument.Parse(await session.GetStringAsync($"/api/v1/orgs/{orgId}/keys"));
+        Assert.Equal("Renamed key", renamed.RootElement[0].GetProperty("name").GetString());
+
+        // Usage endpoints answer for the owner.
+        Assert.Equal(HttpStatusCode.OK, (await session.GetAsync($"/api/v1/orgs/{orgId}/usage/history")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await session.GetAsync($"/api/v1/orgs/{orgId}/usage/top-endpoints")).StatusCode);
+
+        // Someone else's session cannot read this organisation.
+        var stranger = await SignInAsync("create", $"stranger-{Guid.NewGuid():N}@example.com");
+        Assert.NotEqual(HttpStatusCode.OK, (await stranger.GetAsync($"/api/v1/orgs/{orgId}/keys")).StatusCode);
+
+        // Revoking the key stops it working immediately.
+        var revoke = await session.DeleteAsync($"/api/v1/orgs/{orgId}/keys/{keyGuid}");
+        Assert.Equal(HttpStatusCode.NoContent, revoke.StatusCode);
+        await Task.Delay(TimeSpan.FromSeconds(31)); // the key lookup is cached for 30 seconds
+        Assert.Equal(HttpStatusCode.Unauthorized, (await keyClient.GetAsync("/api/v1/topics/types")).StatusCode);
+
+        // Sign out ends the session; signing in again with a magic link works.
+        Assert.True((await session.PostAsync("/api/v1/auth/logout", null)).IsSuccessStatusCode);
+        var again = await SignInAsync("signin", email);
+        Assert.Equal(HttpStatusCode.OK, (await again.GetAsync("/api/v1/users/me")).StatusCode);
+
+        // Deleting the account removes the data and ends the session.
+        Assert.Equal(HttpStatusCode.NoContent, (await again.DeleteAsync("/api/v1/users/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await again.GetAsync("/api/v1/users/me")).StatusCode);
+    }
+
     // --- Waitlist -----------------------------------------------------------------------------
     // Each test uses its own X-Forwarded-For address: the waitlist rate limit (5/hour) is
     // per client address, and these tests would otherwise share one partition and trip it.
