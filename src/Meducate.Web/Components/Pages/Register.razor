@@ -75,7 +75,7 @@
                         <div class="text-center py-3">
                             <h5 class="fw-semibold mb-2">Check your email</h5>
                             <p class="text-muted mb-3">
-                                We've sent a @(_isCreateMode ? "verification" : "sign-in") link to <strong>@_form?.Username</strong>.<br />
+                                @(_isCreateMode ? "We've sent a verification link to" : "If an account exists for") <strong>@_form?.Username</strong>@(_isCreateMode ? "." : ", we've sent a sign-in link.")<br />
                                 Click the link in the email to continue.
                             </p>
                             <div class="alert alert-success" role="alert">
