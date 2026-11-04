@@ -41,6 +41,25 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
                 return Results.Ok(new { topics = count });
             });
+        internalRoutes.MapPost("/internal/topics/categorize",
+            async (HttpContext http, ITopicWriteRepository writeRepo, Meducate.Domain.Services.ILLMProcessor llm, IConfiguration config, ILoggerFactory loggerFactory, Dictionary<string, string> nameToCategory, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "categorize");
+                if (authError is not null) return authError;
+
+                var valid = llm.GetValidCategories();
+                var invalid = nameToCategory.Values.Where(c => !valid.Contains(c)).Distinct().ToList();
+                if (invalid.Count > 0)
+                    return Results.Problem($"Unknown categories: {string.Join(", ", invalid)}.", statusCode: StatusCodes.Status400BadRequest);
+
+                var results = new Dictionary<string, int>();
+                foreach (var (name, category) in nameToCategory)
+                    results[name] = await writeRepo.SetCategoryAsync(name, category, ct);
+
+                logger.LogInformation("Internal: set categories on {Count} topics", results.Count(r => r.Value > 0));
+                return Results.Ok(results);
+            });
         internalRoutes.MapPost("/internal/topics/recode",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
             {

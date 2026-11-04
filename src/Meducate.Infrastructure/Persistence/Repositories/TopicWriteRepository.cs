@@ -62,6 +62,10 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
                 .SetProperty(c => c.LastSourceRefresh, now), ct);
     }
 
+    public async Task<int> SetCategoryAsync(string name, string category, CancellationToken ct) =>
+        await _db.HealthTopics.Where(c => c.Name == name)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Category, category), ct);
+
     // Drops every stored ICD-11 code so the next refresh looks them all up again (after a WHO release bump or a matcher change).
     public async Task<int> ClearIcd11CodesAsync(CancellationToken ct) =>
         await _db.HealthTopics.Where(c => c.Icd11Code != null)
