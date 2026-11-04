@@ -203,6 +203,10 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 
 > Response field names adapt to topic type: for example, a Symptom returns `relatedSymptoms`, `associatedConditions`, and `management` instead of `symptoms`, `causes`, and `treatments`.
 
+## Data sources and attribution
+
+Health information from MedlinePlus and PubMed, U.S. National Library of Medicine. ICD-11 codes and titles are © World Health Organization, used under the WHO ICD API terms of use. The topic text is generated from those sources by a language model and is not a copy of any one of them. Educational and informational use only.
+
 ## Design Decisions
 
 **Semantic Kernel** was chosen over direct OpenAI SDK calls because it provides a clean abstraction for prompt orchestration and makes it straightforward to swap models or add prompt filters without touching business logic. **Hangfire** handles the daily discovery and refresh pipeline: its PostgreSQL-backed persistence means jobs survive restarts, and the built-in dashboard makes it easy to monitor and retry failures. **Magic-link auth** eliminates password management entirely, which is appropriate for a developer-facing tool where security matters but registration friction should be minimal. The overall **Clean Architecture** keeps the domain free of infrastructure concerns, so the data providers, LLM processor, and persistence layer can all be replaced independently, which is useful when external APIs change or better models become available.
