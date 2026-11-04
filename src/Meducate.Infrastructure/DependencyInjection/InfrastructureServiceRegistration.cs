@@ -120,6 +120,8 @@ internal static class InfrastructureServiceRegistration
         services.AddScoped<TopicDiscoveryJob>();
         services.AddScoped<DataIntegrityCheckService>();
         services.AddScoped<DataIntegrityCheckJob>();
+        services.AddScoped<IDataBackupService, Meducate.Infrastructure.Backup.DataBackupService>();
+        services.AddScoped<BackupJob>();
         services.AddSingleton<JobResultStore>();
 
         // API keys

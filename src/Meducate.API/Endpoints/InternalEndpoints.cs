@@ -13,6 +13,7 @@ internal static class InternalEndpoints
         ["data-integrity-check"]        = c => c.Enqueue<DataIntegrityCheckJob>(j => j.ExecuteAsync(JobCancellationToken.Null, null)),
         ["refresh-medical-conditions"]  = c => c.Enqueue<TopicRefreshJob>(j => j.ExecuteAsync(JobCancellationToken.Null, null)),
         ["discover-medical-conditions"] = c => c.Enqueue<TopicDiscoveryJob>(j => j.ExecuteAsync(JobCancellationToken.Null, null)),
+        ["backup-user-data"]           = c => c.Enqueue<BackupJob>(j => j.ExecuteAsync(JobCancellationToken.Null, null)),
     };
 
     internal static WebApplication MapInternalEndpoints(this WebApplication app)
@@ -40,6 +41,23 @@ internal static class InternalEndpoints
                 var count = await writeRepo.ForceSourceRefreshAsync(ct);
                 logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
                 return Results.Ok(new { topics = count });
+            });
+        internalRoutes.MapGet("/internal/backup/export",
+            async (HttpContext http, Meducate.Domain.Services.IDataBackupService backup, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            {
+                var authError = CheckToken(http, config, loggerFactory.CreateLogger("Meducate.API.Internal"), "backup-export");
+                return authError ?? Results.Ok(await backup.ExportAsync(ct));
+            });
+        internalRoutes.MapPost("/internal/backup/restore",
+            async (HttpContext http, Meducate.Domain.Services.IDataBackupService backup, IConfiguration config, ILoggerFactory loggerFactory, Meducate.Domain.Services.BackupDocument document, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "backup-restore");
+                if (authError is not null) return authError;
+
+                var result = await backup.RestoreAsync(document, ct);
+                logger.LogInformation("Internal: restored backup ({Users} users, {Orgs} organisations, {Waitlist} waitlist entries added)", result.UsersAdded, result.OrganisationsAdded, result.WaitlistAdded);
+                return Results.Ok(result);
             });
         internalRoutes.MapGet("/internal/llm/spend",
             async (HttpContext http, Meducate.Domain.Services.ILlmSpendTracker tracker, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct, int days = 7) =>

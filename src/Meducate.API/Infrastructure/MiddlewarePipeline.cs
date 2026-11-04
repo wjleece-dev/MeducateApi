@@ -80,6 +80,11 @@ internal static class MiddlewarePipeline
             job => job.ExecuteAsync(JobCancellationToken.Null),
             "0 2 * * *"); // 2 AM UTC
 
+        jobManager.AddOrUpdate<BackupJob>(
+            "weekly-data-backup",
+            job => job.ExecuteAsync(JobCancellationToken.Null, null),
+            "0 5 * * 0"); // Sundays 5 AM UTC
+
         jobManager.AddOrUpdate<TopicRefreshJob>(
             "refresh-medical-conditions",
             job => job.ExecuteAsync(JobCancellationToken.Null),

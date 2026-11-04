@@ -9,4 +9,5 @@ internal interface IEmailService
     Task<EmailResult> SendRateLimitWarningEmailAsync(string email, string keyName, int currentUsage, int dailyLimit);
     Task<EmailResult> SendDataIntegrityAlertAsync(string email, int failureCount, int warningCount, int batchChecked, int batchIndex, int totalBatches, IReadOnlyList<string> failureDetails);
     Task<EmailResult> SendWaitlistNotificationAsync(string submittedEmail);
+    Task<EmailResult> SendBackupAsync(string toEmail, string fileName, byte[] content, string summary);
 }

@@ -265,6 +265,23 @@ internal sealed class EmailService(IResend resend, IMemoryCache cache, ILogger<E
             $"data integrity alert to {MaskEmail(email)}");
     }
 
+    public async Task<EmailResult> SendBackupAsync(string toEmail, string fileName, byte[] content, string summary)
+    {
+        var message = new EmailMessage
+        {
+            From = $"MeducateAPI <{_fromAddress}>",
+            To = toEmail,
+            Subject = "MeducateAPI weekly data backup",
+            HtmlBody = $"<p>{WebUtility.HtmlEncode(summary)}</p><p>The attached file holds accounts, organisations and the waitlist. It contains no API key secrets. Restore with POST /internal/backup/restore.</p>",
+            TextBody = summary + "\n\nThe attached file holds accounts, organisations and the waitlist. It contains no API key secrets. Restore with POST /internal/backup/restore.",
+            Attachments = [new EmailAttachment { Filename = fileName, Content = content }]
+        };
+
+        _logger.LogInformation("Sending weekly data backup ({Bytes} bytes)", content.Length);
+        await SendWithRetryAsync(message, "weekly data backup");
+        return new EmailResult(true);
+    }
+
     public async Task<EmailResult> SendWaitlistNotificationAsync(string submittedEmail)
     {
         // One signup attempt per email address per 24 hours

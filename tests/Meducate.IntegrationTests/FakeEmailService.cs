@@ -26,4 +26,12 @@ public sealed class FakeEmailService : IEmailService
 
     Task<EmailResult> IEmailService.SendWaitlistNotificationAsync(string submittedEmail) =>
         Task.FromResult(new EmailResult(true));
+
+    public byte[]? LastBackup { get; private set; }
+
+    Task<EmailResult> IEmailService.SendBackupAsync(string toEmail, string fileName, byte[] content, string summary)
+    {
+        LastBackup = content;
+        return Task.FromResult(new EmailResult(true));
+    }
 }

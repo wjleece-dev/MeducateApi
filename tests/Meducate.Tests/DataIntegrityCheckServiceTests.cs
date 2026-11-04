@@ -200,6 +200,7 @@ public class DataIntegrityCheckServiceTests
         public Task<EmailResult> SendVerificationEmailAsync(string email, string verificationUrl) => throw new NotImplementedException();
         public Task<EmailResult> SendLoginEmailAsync(string email, string loginUrl) => throw new NotImplementedException();
         public Task<EmailResult> SendRateLimitWarningEmailAsync(string email, string keyName, int currentUsage, int dailyLimit) => throw new NotImplementedException();
+        public Task<EmailResult> SendBackupAsync(string toEmail, string fileName, byte[] content, string summary) => throw new NotImplementedException();
         public Task<EmailResult> SendWaitlistNotificationAsync(string submittedEmail) => throw new NotImplementedException();
     }
 

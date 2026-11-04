@@ -284,6 +284,55 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
         Assert.Equal(HttpStatusCode.Unauthorized, (await again.GetAsync("/api/v1/users/me")).StatusCode);
     }
 
+    [Fact]
+    public async Task Backup_ExportContainsNoSecrets_AndRestoreBringsADeletedAccountBack()
+    {
+        var email = $"backup-{Guid.NewGuid():N}@example.com";
+        var anonymous = NewClientWithCsrfHeader(factory);
+        await anonymous.PostAsJsonAsync("/api/v1/users/register", new { email, acceptedTerms = true });
+        var token = QueryHelpers.ParseQuery(new Uri(factory.EmailService.LastVerificationUrl!).Query)["token"].ToString();
+        var verify = await anonymous.PostAsJsonAsync("/api/v1/users/verify", new { token });
+        var session = NewClientWithCsrfHeader(factory);
+        session.DefaultRequestHeaders.Add("Cookie", ExtractSetCookieValue(verify, "meducateapi_auth")!);
+        var orgId = (await (await session.PostAsJsonAsync("/api/v1/orgs", new { organisationName = "Backup Org" })).Content.ReadAsStringAsync()).Trim('"');
+        using var key = JsonDocument.Parse(await (await session.PostAsJsonAsync($"/api/v1/orgs/{orgId}/keys", new { name = "Backup key" })).Content.ReadAsStringAsync());
+        var rawKey = key.RootElement.GetProperty("apiKey").GetString()!;
+
+        HttpRequestMessage Internal(HttpMethod method, string path, HttpContent? content = null)
+        {
+            var request = new HttpRequestMessage(method, path) { Content = content };
+            request.Headers.Add("X-Internal-Token", MeducateApiFactory.InternalToken);
+            return request;
+        }
+
+        var export = await NewClient(factory).SendAsync(Internal(HttpMethod.Get, "/internal/backup/export"));
+        Assert.Equal(HttpStatusCode.OK, export.StatusCode);
+        var exported = await export.Content.ReadAsStringAsync();
+        Assert.Contains(email, exported);
+        Assert.Contains("Backup Org", exported);
+        Assert.Contains("Backup key", exported);
+        Assert.DoesNotContain(rawKey.Split('.')[1], exported); // no key secret
+        Assert.DoesNotContain("hashedSecret", exported, StringComparison.OrdinalIgnoreCase);
+
+        // Lose the account, then restore from the export.
+        Assert.Equal(HttpStatusCode.NoContent, (await session.DeleteAsync("/api/v1/users/me")).StatusCode);
+        var gone = await NewClient(factory).SendAsync(Internal(HttpMethod.Get, "/internal/backup/export"));
+        Assert.DoesNotContain(email, await gone.Content.ReadAsStringAsync());
+
+        var restore = await NewClient(factory).SendAsync(Internal(HttpMethod.Post, "/internal/backup/restore",
+            new StringContent(exported, System.Text.Encoding.UTF8, "application/json")));
+        Assert.Equal(HttpStatusCode.OK, restore.StatusCode);
+
+        var after = await (await NewClient(factory).SendAsync(Internal(HttpMethod.Get, "/internal/backup/export"))).Content.ReadAsStringAsync();
+        Assert.Contains(email, after);
+        Assert.Contains("Backup Org", after);
+
+        // Running it again changes nothing.
+        using var again = JsonDocument.Parse(await (await NewClient(factory).SendAsync(Internal(HttpMethod.Post, "/internal/backup/restore",
+            new StringContent(exported, System.Text.Encoding.UTF8, "application/json")))).Content.ReadAsStringAsync());
+        Assert.Equal(0, again.RootElement.GetProperty("usersAdded").GetInt32());
+    }
+
     // --- Waitlist -----------------------------------------------------------------------------
     // Each test uses its own X-Forwarded-For address: the waitlist rate limit (5/hour) is
     // per client address, and these tests would otherwise share one partition and trip it.
