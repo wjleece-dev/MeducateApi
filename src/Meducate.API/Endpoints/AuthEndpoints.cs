@@ -121,7 +121,6 @@ internal static class AuthEndpoints
         .WithName("Register")
         .WithSummary("Register or sign in")
         .Produces(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .ProducesProblem(StatusCodes.Status502BadGateway)
         .WithTags("Auth");

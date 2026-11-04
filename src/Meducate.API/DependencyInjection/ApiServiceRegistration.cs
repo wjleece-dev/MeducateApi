@@ -54,6 +54,7 @@ internal static class ApiServiceRegistration
                     Url = new Uri("https://meducateapi.com")
                 }
             });
+            c.AddServer(new Microsoft.OpenApi.OpenApiServer { Url = "https://api.meducateapi.com", Description = "Production" });
             c.OperationFilter<SwaggerHeaderOperationFilter>();
             c.SchemaFilter<HealthTopicSchemaFilter>();
         });

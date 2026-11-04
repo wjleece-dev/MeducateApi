@@ -99,6 +99,19 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
     }
 
     [Fact]
+    public async Task Swagger_ExposesOnlyThePublicSurface()
+    {
+        var json = await NewClient(factory).GetStringAsync("/swagger/v1/swagger.json");
+        using var doc = JsonDocument.Parse(json);
+
+        Assert.DoesNotContain(doc.RootElement.GetProperty("paths").EnumerateObject(), p => p.Name.StartsWith("/internal"));
+        Assert.Equal("https://api.meducateapi.com", doc.RootElement.GetProperty("servers")[0].GetProperty("url").GetString());
+
+        var topics = doc.RootElement.GetProperty("paths").GetProperty("/api/v1/topics").GetProperty("get").GetProperty("responses");
+        Assert.True(topics.TryGetProperty("401", out _) && topics.TryGetProperty("429", out _));
+    }
+
+    [Fact]
     public async Task Swagger_HealthTopicSchema_UsesWireFieldNames()
     {
         var json = await NewClient(factory).GetStringAsync("/swagger/v1/swagger.json");

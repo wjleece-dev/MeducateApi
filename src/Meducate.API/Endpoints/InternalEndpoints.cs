@@ -17,18 +17,20 @@ internal static class InternalEndpoints
 
     internal static WebApplication MapInternalEndpoints(this WebApplication app)
     {
-        app.MapPost("/internal/jobs/{jobName}", Handle);
-        app.MapGet("/internal/jobs/{jobName}/last-run", HandleLastRun);
-        app.MapGet("/internal/topics/sample",
+        // Operational routes: keep them out of the public OpenAPI document.
+        var internalRoutes = app.MapGroup(string.Empty).ExcludeFromDescription();
+        internalRoutes.MapPost("/internal/jobs/{jobName}", Handle);
+        internalRoutes.MapGet("/internal/jobs/{jobName}/last-run", HandleLastRun);
+        internalRoutes.MapGet("/internal/topics/sample",
             (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, int count = 10, int? skip = null, CancellationToken ct = default)
                 => HandleTopicSample(http, queryRepo, config, loggerFactory, count, skip, ct));
-        app.MapGet("/internal/waitlist",
+        internalRoutes.MapGet("/internal/waitlist",
             (HttpContext http, IWaitlistRepository waitlist, IConfiguration config, ILoggerFactory loggerFactory, int take = 50, int skip = 0, CancellationToken ct = default)
                 => HandleWaitlistList(http, waitlist, config, loggerFactory, take, skip, ct));
-        app.MapPost("/internal/topics/reprocess",
+        internalRoutes.MapPost("/internal/topics/reprocess",
             (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, [Microsoft.AspNetCore.Mvc.FromQuery] string[] type, [Microsoft.AspNetCore.Mvc.FromQuery] string[] name, CancellationToken ct)
                 => HandleTopicReprocess(http, writeRepo, config, loggerFactory, type, name, ct));
-        app.MapPost("/internal/topics/resync",
+        internalRoutes.MapPost("/internal/topics/resync",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
             {
                 var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
@@ -39,7 +41,7 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
                 return Results.Ok(new { topics = count });
             });
-        app.MapPost("/internal/topics/sanitize",
+        internalRoutes.MapPost("/internal/topics/sanitize",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
             {
                 var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
@@ -50,7 +52,7 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: sanitised {Count} stored topics", changed);
                 return Results.Ok(new { changed });
             });
-        app.MapGet("/internal/diag/client",
+        internalRoutes.MapGet("/internal/diag/client",
             (HttpContext http, IConfiguration config, ILoggerFactory loggerFactory) =>
             {
                 var authError = CheckToken(http, config, loggerFactory.CreateLogger("Meducate.API.Internal"), "diag");
@@ -67,10 +69,10 @@ internal static class InternalEndpoints
                     xRealIp = http.Request.Headers["X-Real-IP"].ToString(),
                 });
             });
-        app.MapPost("/internal/topics/retype",
+        internalRoutes.MapPost("/internal/topics/retype",
             (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, Dictionary<string, string> nameToType, CancellationToken ct)
                 => HandleTopicRetype(http, writeRepo, config, loggerFactory, nameToType, ct));
-        app.MapGet("/internal/topics/fact-check",
+        internalRoutes.MapGet("/internal/topics/fact-check",
             (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, int count = 5, int? skip = null, int rawSourceChars = 3000, CancellationToken ct = default)
                 => HandleTopicFactCheck(http, queryRepo, config, loggerFactory, count, skip, rawSourceChars, ct));
         return app;

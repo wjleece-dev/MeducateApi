@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Hangfire.Dashboard;
 
 namespace Meducate.API.Infrastructure;
@@ -16,28 +18,26 @@ internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilte
         if (string.IsNullOrEmpty(expectedPassword))
             return false;
 
-        // Check cookie first
         if (httpContext.Request.Cookies.TryGetValue(CookieName, out var cookieValue)
-            && cookieValue == expectedPassword)
+            && Matches(cookieValue, SessionToken(expectedPassword)))
             return true;
 
-        // Check query string
-        var queryPassword = httpContext.Request.Query["password"].FirstOrDefault();
-        if (!string.IsNullOrEmpty(queryPassword))
+        // The password is posted, never put in the URL, so it stays out of access logs and history.
+        if (httpContext.Request.Method == HttpMethods.Post && httpContext.Request.HasFormContentType)
         {
-            if (queryPassword == expectedPassword)
+            var submitted = httpContext.Request.Form["password"].FirstOrDefault();
+            if (Matches(submitted, expectedPassword))
             {
-                httpContext.Response.Cookies.Append(CookieName, expectedPassword, new CookieOptions
+                httpContext.Response.Cookies.Append(CookieName, SessionToken(expectedPassword), new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
                     SameSite = SameSiteMode.Strict,
+                    Path = "/hangfire",
                     MaxAge = TimeSpan.FromHours(12)
                 });
 
-                // Redirect to remove password from URL
-                var path = httpContext.Request.Path.Value ?? "/hangfire";
-                httpContext.Response.Redirect(path);
+                httpContext.Response.Redirect(httpContext.Request.Path.Value ?? "/hangfire");
                 return true;
             }
 
@@ -48,6 +48,15 @@ internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilte
         WriteLoginPage(httpContext);
         return false;
     }
+
+    // The cookie carries a keyed digest, not the password itself.
+    internal static string SessionToken(string password) =>
+        Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(password), "hangfire-dashboard-session"u8));
+
+    internal static bool Matches(string? provided, string expected) =>
+        CryptographicOperations.FixedTimeEquals(
+            SHA256.HashData(Encoding.UTF8.GetBytes(provided ?? string.Empty)),
+            SHA256.HashData(Encoding.UTF8.GetBytes(expected)));
 
     private static void WriteLoginPage(HttpContext httpContext, string? error = null)
     {
@@ -63,10 +72,10 @@ internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilte
             <html>
             <head><title>Hangfire Dashboard</title></head>
             <body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
-              <form method="get" style="text-align:center;">
+              <form method="post" style="text-align:center;">
                 <h2>Hangfire Dashboard</h2>
                 {errorHtml}
-                <input type="password" name="password" placeholder="Password" required
+                <input type="password" name="password" placeholder="Password" required autocomplete="current-password"
                        style="padding:8px;font-size:16px;margin-right:8px;" />
                 <button type="submit" style="padding:8px 16px;font-size:16px;">Login</button>
               </form>

@@ -20,6 +20,11 @@ internal sealed class SwaggerHeaderOperationFilter : IOperationFilter
         if (!requiresKey)
             return;
 
+        // Every key-protected route can answer these, whatever its own handler declares.
+        operation.Responses ??= [];
+        operation.Responses.TryAdd("401", new OpenApiResponse { Description = "Missing or invalid API key." });
+        operation.Responses.TryAdd("429", new OpenApiResponse { Description = "Rate limit exceeded: 60 requests per minute per key, plus the key's daily limit. See the Retry-After header." });
+
         operation.Parameters ??= [];
 
         if (operation.Parameters.Any(p => p.Name == HeaderName))
