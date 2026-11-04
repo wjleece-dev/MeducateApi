@@ -5,7 +5,7 @@ namespace Meducate.Infrastructure.LLM;
 
 internal static class SemanticKernelBuilder
 {
-    public static Kernel CreateKernel(IConfiguration config)
+    public static Kernel CreateKernel(IConfiguration config, Meducate.Domain.Services.ILlmSpendTracker? spendTracker = null)
     {
         var openAiKey = config["OpenAI:ApiKey"];
         if (string.IsNullOrWhiteSpace(openAiKey))
@@ -25,6 +25,12 @@ internal static class SemanticKernelBuilder
         if (!string.IsNullOrWhiteSpace(escalationModel))
             builder.AddOpenAIChatCompletion(modelId: escalationModel, apiKey: openAiKey, serviceId: SemanticKernelLLMProcessor.EscalationServiceId);
 
-        return builder.Build();
+        var kernel = builder.Build();
+
+        // Every call goes through the budget check and the usage ledger.
+        if (spendTracker is not null)
+            kernel.FunctionInvocationFilters.Add(new SpendGuardFilter(spendTracker, model));
+
+        return kernel;
     }
 }

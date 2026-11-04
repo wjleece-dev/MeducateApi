@@ -41,6 +41,21 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
                 return Results.Ok(new { topics = count });
             });
+        internalRoutes.MapGet("/internal/llm/spend",
+            async (HttpContext http, Meducate.Domain.Services.ILlmSpendTracker tracker, IConfiguration config, ILoggerFactory loggerFactory, int days, CancellationToken ct) =>
+            {
+                var authError = CheckToken(http, config, loggerFactory.CreateLogger("Meducate.API.Internal"), "llm-spend");
+                if (authError is not null) return authError;
+
+                var summary = await tracker.GetSummaryAsync(Math.Clamp(days == 0 ? 7 : days, 1, 60), ct);
+                return Results.Ok(new
+                {
+                    dailyBudgetUsd = summary.DailyBudgetUsd,
+                    spentTodayUsd = Math.Round(summary.SpentTodayUsd, 4),
+                    today = summary.TodayByModel.Select(m => new { m.Model, m.Calls, m.InputTokens, m.OutputTokens, costUsd = Math.Round(m.CostUsd, 4) }),
+                    days = summary.Days.Select(d => new { d.Day, d.Calls, costUsd = Math.Round(d.CostUsd, 4) }),
+                });
+            });
         internalRoutes.MapGet("/internal/topics/stats",
             async (HttpContext http, ITopicQueryRepository queryRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
             {

@@ -60,10 +60,12 @@ internal static class InfrastructureServiceRegistration
         services.AddTransient<IResend, ResendClient>();
 
         // LLM / Semantic Kernel
+        services.AddSingleton<ILlmUsageStore, LlmUsageStore>();
+        services.AddSingleton<ILlmSpendTracker, LlmSpendTracker>();
         services.AddSingleton(sp =>
         {
             var cfg = sp.GetRequiredService<IConfiguration>();
-            return SemanticKernelBuilder.CreateKernel(cfg);
+            return SemanticKernelBuilder.CreateKernel(cfg, sp.GetRequiredService<ILlmSpendTracker>());
         });
         services.AddScoped<ILLMProcessor, SemanticKernelLLMProcessor>();
 

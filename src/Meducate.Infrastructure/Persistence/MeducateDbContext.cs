@@ -105,4 +105,5 @@ internal class MeducateDbContext(DbContextOptions<MeducateDbContext> options) : 
     public DbSet<SeenTopic> SeenTopics { get; set; } = default!;
     public DbSet<User> Users { get; set; } = default!;
     public DbSet<WaitlistEntry> WaitlistEntries { get; set; } = default!;
+    public DbSet<LlmUsage> LlmUsages { get; set; } = default!;
 }
