@@ -28,6 +28,11 @@ internal sealed class TopicRefreshService(
     private static readonly TimeSpan LlmThrottle = TimeSpan.FromMilliseconds(500);
     private const int MaxReprocessAttempts = 3;
 
+    // Spend ceilings per run. The job also starts on every deploy, so an uncapped backlog (hundreds of flagged
+    // topics) was re-run, and paid for, each time; the rest stays flagged and drains over the following runs.
+    internal const int MaxReprocessPerRun = 75;
+    internal const int MaxEscalationsPerRun = 20;
+
     internal async Task RefreshAllAsync(PerformContext? console = null, CancellationToken ct = default)
     {
         if (_logger.IsEnabled(LogLevel.Information))
@@ -138,7 +143,14 @@ internal sealed class TopicRefreshService(
         ct.ThrowIfCancellationRequested();
 
         // Phase 2 — LLM reprocess topics whose RawSource changed (parallel with bounded concurrency)
-        var toReprocess = await _queryRepo.GetTopicsNeedingReprocessingAsync(ct);
+        var allFlagged = await _queryRepo.GetTopicsNeedingReprocessingAsync(ct);
+        var toReprocess = allFlagged.Take(MaxReprocessPerRun).ToList();
+
+        if (allFlagged.Count > toReprocess.Count)
+        {
+            _logger.LogInformation("Phase 2: {Deferred} flagged topics deferred to later runs (cap {Cap} per run)",
+                allFlagged.Count - toReprocess.Count, MaxReprocessPerRun);
+        }
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
@@ -148,6 +160,7 @@ internal sealed class TopicRefreshService(
 
         var reprocessedCount = 0;
         var completedLlm = 0;
+        var escalationsUsed = 0;
         var total = toReprocess.Count;
 
         // Parallelize LLM calls with bounded concurrency, then apply results sequentially.
@@ -167,7 +180,7 @@ internal sealed class TopicRefreshService(
             {
                 await Task.Delay(LlmThrottle, ct);
                 // A topic that already failed a quality check once is retried on the stronger model (when configured)
-                var escalate = topic.ReprocessAttempts >= 1;
+                var escalate = topic.ReprocessAttempts >= 1 && Interlocked.Increment(ref escalationsUsed) <= MaxEscalationsPerRun;
                 var structured = await _llmProcessor.ParseHealthTopicAsync(topic.RawSource, topic.TopicType, topic.Name, ct, escalate);
 
                 // Skip verification when extraction is structurally broken (nothing to verify); semantic

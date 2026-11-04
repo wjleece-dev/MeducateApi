@@ -123,6 +123,23 @@ public class TopicRefreshServiceTests
     }
 
     [Fact]
+    public async Task RefreshAllAsync_Reprocess_IsCappedPerRun_AndLeavesTheRestFlagged()
+    {
+        var topics = Enumerable.Range(0, TopicRefreshService.MaxReprocessPerRun + 25)
+            .Select(i => new HealthTopic { Name = $"Topic {i}", RawSource = new string('x', 200), NeedsLlmReprocessing = true })
+            .ToList();
+        var queryRepo = new FakeQueryRepo { AllTopics = topics };
+        var writeRepo = new FakeWriteRepo();
+        var llm = new FakeLlmProcessor { ParseResult = GoodQualityTopic("Topic 0") };
+        var service = BuildService([], queryRepo, writeRepo, llm);
+
+        await service.RefreshAllAsync();
+
+        Assert.Equal(TopicRefreshService.MaxReprocessPerRun, topics.Count(t => !t.NeedsLlmReprocessing));
+        Assert.Equal(25, topics.Count(t => t.NeedsLlmReprocessing));
+    }
+
+    [Fact]
     public async Task RefreshAllAsync_Reprocess_GivesUp_AfterMaxAttempts()
     {
         var lowQuality = GoodQualityTopic("Topic A");
