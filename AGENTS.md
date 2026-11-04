@@ -56,7 +56,7 @@ Magic-link email only, no passwords.
 
 1. `POST /api/users/register` creates or retrieves user, sends verification or login email via Resend.
 2. `POST /api/users/verify` validates token, calls `AuthSignIn.SignInAsync`, sets cookie `meducateapi_auth`.
-3. Cookie: 8 hr absolute, 7-day max, sliding renewal. Security stamp checked every 5 min (`StampCheckIntervalSeconds = 300`).
+3. Cookie: 3-day sliding expiry, 7-day absolute max (`MaxAuthAgeSeconds`). Security stamp checked every 5 min (`StampCheckIntervalSeconds = 300`).
 4. CSRF protection via `X-Requested-By` header (checked in `CsrfProtectionMiddleware`).
 5. Account deletion requires a fresh session (signed in within last 10 min, `FreshAuthWindowSeconds = 600`).
 
@@ -139,7 +139,12 @@ Hangfire dashboard: `/hangfire`, protected by `HangfireDashboardAuthFilter` — 
 POST /internal/jobs/{jobName}              Enqueue a named job
 GET  /internal/jobs/{jobName}/last-run     Last run result
 GET  /internal/topics/sample               Random topic sample for inspection
-GET  /internal/topics/fact-check           Topics with raw source attached for QA
+GET  /internal/topics/fact-check           Topics with raw source attached for QA (count max 10, use skip to page; global 60/min limit applies)
+GET  /internal/waitlist                    Pro waitlist signups
+POST /internal/topics/reprocess?type=&name=  Flag topics for LLM re-extraction on the next refresh
+POST /internal/topics/retype               Body {"Name":"NewType"}: fix a misclassified topic (clears category/ICD-11, re-extracts)
+POST /internal/topics/resync               Make every topic re-fetch its source on the next refresh
+POST /internal/topics/sanitize             Apply TextCleaner to all stored topics
 ```
 
 Known job names: `data-integrity-check`, `refresh-medical-conditions`, `discover-medical-conditions`.
@@ -204,6 +209,7 @@ ForwardedHeaders -> HTTPS redirect/HSTS -> ResponseCompression -> Routing -> COR
 | `Resend:ApiToken` | Resend email API key |
 | `Resend:FromAddress` | From-address used when sending via Resend |
 | `Internal:TriggerToken` | Bearer token for `/internal/*` endpoints |
+| `OpenAI:EscalationModel` | Optional stronger model (e.g. `gpt-4.1`). A topic that already failed a quality check once is retried on it. Unset = never escalate. |
 | `App:BaseUrl` | Public base URL used to build magic-link URLs |
 | `Cors:AllowedOrigins` | Array of allowed origins for CORS |
 | `Hangfire:DashboardPassword` | Password for the `/hangfire` dashboard (see above) |

@@ -4,7 +4,7 @@
 
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?logo=openai&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-412991?logo=openai&logoColor=white)
 ![Hangfire](https://img.shields.io/badge/Hangfire-1.8-5C2D91)
 ![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?logo=blazor)
 ![Railway](https://img.shields.io/badge/Railway-Deployed-0B0D0E?logo=railway)
@@ -28,9 +28,9 @@ MeducateAPI automatically discovers and aggregates medical topics from authorita
 - **Automated topic discovery** — daily Hangfire jobs fetch new topics from MedlinePlus at 2 AM UTC
 - **Automated topic refresh** — existing topics re-processed daily at 3 AM UTC for accuracy
 - **Nightly drift detection** — a rotating batch of live topics is re-checked against their original source text each night; low keyword overlap flags likely hallucination or staleness, and structural failures (missing fields, invalid categories) trigger an email alert
-- **Topic classification** — LLM-powered categorisation into 24 standardised medical categories
+- **Topic classification** — LLM-powered categorisation into 26 standardised medical categories
 - **ICD-11 coding** — diagnosable topics (Disease, Disorder, Syndrome, Symptom, Mental Health) are matched against the WHO ICD-11 API for a real, verifiable diagnostic code — not LLM-generated
-- **Interactive Swagger docs** — full OpenAPI spec with try-it-out support
+- **OpenAPI spec and Postman collection** — full OpenAPI 3 document at `/swagger/v1/swagger.json`, plus a ready-made Postman collection with tests
 - **Usage dashboard** — Blazor Server UI for managing keys, viewing usage, and browsing docs
 
 ## Architecture
@@ -91,7 +91,7 @@ The project follows **Clean Architecture** with four layers, each depending only
 | Runtime | .NET 10, ASP.NET Core Minimal APIs |
 | Frontend | Blazor Server |
 | Database | PostgreSQL via EF Core (Npgsql) |
-| AI / LLM | Microsoft Semantic Kernel + OpenAI GPT-4 |
+| AI / LLM | Microsoft Semantic Kernel + OpenAI (gpt-4o-mini, optional stronger model for topics that fail a quality check) |
 | Background Jobs | Hangfire with PostgreSQL storage |
 | Email | Resend API |
 | Auth | Cookie-based with magic-link verification |
@@ -156,40 +156,48 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 
 ## Sample Response
 
-`GET /api/v1/topics/Type 2 Diabetes`
+`GET /api/v1/topics/Type 2 Diabetes` (real response, lists shortened here)
 
 ```json
 {
-  "id": "a1b2c3d4-5678-9abc-def0-1234567890ab",
+  "id": "a1000000-0000-0000-0000-000000000002",
   "name": "Type 2 Diabetes",
-  "summary": "A chronic metabolic disorder in which the body becomes resistant to insulin or doesn't produce enough, leading to elevated blood glucose levels.",
+  "summary": "Type 2 diabetes is a chronic disease characterized by high blood glucose levels due to insulin resistance and inadequate insulin production. Common symptoms include increased thirst and urination, increased hunger, fatigue, blurred vision, numbness or tingling in the feet or hands, sores that do not heal, and unexplained weight loss, though many individuals may not experience noticeable symptoms. Treatment focuses on managing blood glucose through lifestyle changes like healthy eating and physical activity, along with medications, if necessary.",
   "topicType": "Disease",
   "category": "Endocrine, Nutritional & Metabolic",
   "icd11Code": "5A11",
   "icd11Title": "Type 2 diabetes mellitus",
   "symptoms": [
-    "Increased Thirst And Frequent Urination",
-    "Unexplained Weight Loss",
-    "Blurred Vision",
-    "Slow-Healing Sores"
+    "Increased thirst",
+    "Increased urination",
+    "Increased hunger",
+    "Fatigue",
+    "Blurred vision"
   ],
   "causes": [
-    "Insulin Resistance",
-    "Genetic Predisposition",
-    "Obesity And Physical Inactivity"
+    "Being overweight or having obesity",
+    "Not being physically active",
+    "Genetics and family history",
+    "Age over 45"
   ],
   "treatments": [
-    "Blood Sugar Monitoring",
-    "Oral Medications Or Insulin Therapy",
-    "Dietary Management And Regular Exercise"
+    "Healthy eating",
+    "Regular physical activity (e.g., 150 total minutes of activity per week)",
+    "Monitoring blood glucose levels",
+    "Medications (oral medications, insulin, and other injectable medicines if necessary)"
   ],
   "citations": [
-    "MedlinePlus - National Library of Medicine",
-    "PubMed Central"
+    "National Institute of Diabetes and Digestive and Kidney Diseases"
   ],
-  "tags": ["diabetes", "metabolic", "insulin", "blood-sugar", "chronic"],
-  "lastUpdated": "2026-02-28T02:00:00Z",
-  "version": 3
+  "tags": [
+    "diabetes",
+    "insulin",
+    "blood sugar",
+    "glucose",
+    "obesity"
+  ],
+  "lastUpdated": "2026-11-03T15:35:26.826677Z",
+  "version": 11
 }
 ```
 
