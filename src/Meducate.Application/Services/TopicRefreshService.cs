@@ -166,14 +166,16 @@ internal sealed class TopicRefreshService(
             try
             {
                 await Task.Delay(LlmThrottle, ct);
-                var structured = await _llmProcessor.ParseHealthTopicAsync(topic.RawSource, topic.TopicType, topic.Name, ct);
+                // A topic that already failed a quality check once is retried on the stronger model (when configured)
+                var escalate = topic.ReprocessAttempts >= 1;
+                var structured = await _llmProcessor.ParseHealthTopicAsync(topic.RawSource, topic.TopicType, topic.Name, ct, escalate);
 
-                // Only verify if extraction quality is good enough — no point running a second
-                // LLM call on output that will be flagged for retry regardless
-                if (structured is not null && TopicHelpers.CheckTopicQuality(structured) is null)
+                // Skip verification when extraction is structurally broken (nothing to verify); semantic
+                // issues such as aftercare items are exactly what the verifier is there to fix
+                if (structured is not null && TopicHelpers.IsVerifiable(TopicHelpers.CheckTopicQuality(structured)))
                 {
                     await Task.Delay(LlmThrottle, ct);
-                    structured = await _llmProcessor.VerifyHealthTopicAsync(topic.RawSource, structured, ct) ?? structured;
+                    structured = await _llmProcessor.VerifyHealthTopicAsync(topic.RawSource, structured, ct, escalate) ?? structured;
                 }
 
                 var n = Interlocked.Increment(ref completedLlm);

@@ -227,7 +227,14 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
             // clinical content rather than navigation boilerplate.
             var text = await FetchPageTextAsync(url, MaxEncyclopediaChars, ct, CleanEncyclopediaText);
             if (!string.IsNullOrWhiteSpace(text))
-                parts.Add(text);
+            {
+                // Discharge/self-care pages describe aftercare, not the procedure or condition itself;
+                // labelling them lets the extraction prompt keep them out of the structured lists.
+                var label = url.Contains("/ency/patientinstructions/", StringComparison.OrdinalIgnoreCase)
+                    ? "Patient Instructions"
+                    : "Encyclopedia Article";
+                parts.Add($"[{label}]\n{text}");
+            }
         }
         return parts.Count > 0 ? string.Join("\n\n---\n\n", parts) : null;
     }
@@ -293,7 +300,7 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
             // article cover the structured clinical detail. The portal page is skipped
             // when encyclopedia content is available (see FetchTopicDataAsync).
             parts.Add(topic.Summary);
-            parts.Add($"[Encyclopedia Article]\n{encyclopediaText}");
+            parts.Add(encyclopediaText);
         }
         else if (!string.IsNullOrWhiteSpace(portalText))
         {

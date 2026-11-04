@@ -259,13 +259,13 @@ public class TopicRefreshServiceTests
         public bool VerifyCalled { get; private set; }
         public Dictionary<string, string> CategoryResult { get; set; } = [];
 
-        public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default)
+        public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default, bool escalate = false)
         {
             ParseCalled = true;
             return Task.FromResult(ParseResult);
         }
 
-        public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default)
+        public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default, bool escalate = false)
         {
             VerifyCalled = true;
             return Task.FromResult<HealthTopic?>(extracted);

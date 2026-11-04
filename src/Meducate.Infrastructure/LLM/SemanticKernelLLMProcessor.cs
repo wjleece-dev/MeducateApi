@@ -5,8 +5,10 @@ using System.Text.RegularExpressions;
 using Meducate.Application.Helpers;
 using Meducate.Domain.Entities;
 using Meducate.Domain.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<SemanticKernelLLMProcessor>? logger = null) : ILLMProcessor
@@ -26,6 +28,20 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
     // instead of a hope, for every function below. (All prompts already say "JSON" explicitly,
     // which OpenAI requires for this mode.)
     private static readonly OpenAIPromptExecutionSettings JsonResponseFormat = new() { ResponseFormat = "json_object" };
+
+    // Same settings routed to the stronger model registered under this id (see SemanticKernelBuilder).
+    internal const string EscalationServiceId = "escalation";
+    private static readonly OpenAIPromptExecutionSettings EscalatedJsonResponseFormat = new() { ResponseFormat = "json_object", ServiceId = EscalationServiceId };
+
+    private KernelArguments Arguments(bool escalate, params (string Key, object? Value)[] values)
+    {
+        var args = escalate && kernel.Services.GetKeyedService<IChatCompletionService>(EscalationServiceId) is not null
+            ? new KernelArguments(EscalatedJsonResponseFormat)
+            : [];
+        foreach (var (key, value) in values)
+            args[key] = value;
+        return args;
+    }
 
     static SemanticKernelLLMProcessor()
     {
@@ -464,6 +480,8 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
                 - "factors": list reasons the procedure is needed if stated in the text, otherwise []
                 Prefer items from the source text. See FALLBACK FOR SPARSE SOURCES
                 if the text is descriptive prose without discrete lists.
+                A section headed [Patient Instructions] is aftercare and self-care advice. Never take list items
+                from it for any field; at most mention recovery in one summary sentence.
                 """,
             "Symptom" =>
                 """
@@ -541,7 +559,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
         };
     }
 
-    public async Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default)
+    public async Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default, bool escalate = false)
     {
         if (string.IsNullOrWhiteSpace(rawText))
             throw new ArgumentException("Raw text cannot be null or empty.", nameof(rawText));
@@ -621,7 +639,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
 
         var extractResult = await _kernel.InvokeAsync(
             _extractFunction,
-            new() { { "rawText", rawText }, { "typeInstructions", typeInstructions }, { "nameInstruction", nameInstruction } },
+            Arguments(escalate, ("rawText", rawText), ("typeInstructions", typeInstructions), ("nameInstruction", nameInstruction)),
             ct
         );
 
@@ -645,13 +663,13 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
         {
             Id = Guid.NewGuid(),
             Name = ToTitleCase(model.Name.Trim()),
-            Summary = ToSentenceCase(model.Summary),
+            Summary = ToSentenceCase(TextCleaner.CleanSummary(model.Summary)),
             Observations = NormalizeList(model.Observations ?? [], ToSentenceCase),
             Factors = NormalizeList(model.Factors ?? [], ToSentenceCase),
             Actions = NormalizeList(model.Actions ?? [], ToSentenceCase),
-            Citations = model.Citations ?? [],
+            Citations = WithSourceOrganisation(model.Citations, rawText),
             Category = null,
-            Tags = NormalizeList(model.Tags ?? [], s => s.ToLowerInvariant()),
+            Tags = TextCleaner.CleanTags(model.Tags ?? []),
             RawSource = rawText,
             LastUpdated = DateTime.UtcNow,
             Version = 1
@@ -660,7 +678,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
         return topic;
     }
 
-    public async Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default)
+    public async Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default, bool escalate = false)
     {
         if (string.IsNullOrWhiteSpace(rawText))
             throw new ArgumentException("Raw text cannot be null or empty.", nameof(rawText));
@@ -682,7 +700,7 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
 
         var verifyResult = await _kernel.InvokeAsync(
             _verifyFunction,
-            new() { { "rawText", rawText }, { "typeInstructions", typeInstructions }, { "extractedJson", extractedJson } },
+            Arguments(escalate, ("rawText", rawText), ("typeInstructions", typeInstructions), ("extractedJson", extractedJson)),
             ct
         );
 
@@ -704,12 +722,12 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             // Name is intentionally preserved from the original — the verifier must not rename topics
             Name = extracted.Name,
             OriginalName = extracted.OriginalName,
-            Summary = ToSentenceCase(model.Summary),
+            Summary = ToSentenceCase(TextCleaner.CleanSummary(model.Summary)),
             Observations = NormalizeList(model.Observations ?? [], ToSentenceCase),
             Factors = NormalizeList(model.Factors ?? [], ToSentenceCase),
             Actions = NormalizeList(model.Actions ?? [], ToSentenceCase),
-            Citations = model.Citations ?? [],
-            Tags = NormalizeList(model.Tags ?? [], s => s.ToLowerInvariant()),
+            Citations = WithSourceOrganisation(model.Citations, rawText),
+            Tags = TextCleaner.CleanTags(model.Tags ?? []),
             Category = extracted.Category,
             TopicType = extracted.TopicType,
             RawSource = extracted.RawSource,
@@ -1029,9 +1047,19 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
         return char.ToUpperInvariant(trimmed[0]) + trimmed[1..];
     }
 
+    // The provider records the organisation behind a page as "[Source: X]"; when the model names no
+    // citations, that organisation is the grounded one to cite.
+    private static List<string> WithSourceOrganisation(List<string>? citations, string rawText)
+    {
+        var cleaned = NormalizeList(citations ?? [], s => s);
+        if (cleaned.Count == 0 && TextCleaner.SourceOrganisation(rawText) is { } org)
+            cleaned.Add(org);
+        return cleaned;
+    }
+
     private static List<string> NormalizeList(List<string> items, Func<string, string> transform) =>
         [.. items.Where(s => !string.IsNullOrWhiteSpace(s))
-             .Select(s => transform(s.Trim()))
+             .Select(s => transform(TextCleaner.CleanItem(s)))
              .Distinct(StringComparer.OrdinalIgnoreCase)];
 
     internal static string CleanupJson(string json)

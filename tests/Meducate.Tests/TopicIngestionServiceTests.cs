@@ -337,10 +337,10 @@ public class TopicIngestionServiceTests
         public Task<Dictionary<string, string>> ClassifyTopicNamesAsync(IReadOnlyList<TopicClassifyInput> topics, CancellationToken ct = default) =>
             ThrowOnClassify ? throw new InvalidOperationException("LLM unavailable") : Task.FromResult(ClassifyResult);
 
-        public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default) =>
+        public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default, bool escalate = false) =>
             Task.FromResult(ParseResult);
 
-        public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default)
+        public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default, bool escalate = false)
         {
             VerifyCalled = true;
             return Task.FromResult<HealthTopic?>(extracted);

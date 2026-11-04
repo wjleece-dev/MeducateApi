@@ -74,8 +74,28 @@ internal static class TopicHelpers
         if (topic.Actions is not { Count: > 0 } && !TypesWhereEmptyActionsIsValid.Contains(topic.TopicType ?? ""))
             return "no actions populated";
 
+        if (TextCleaner.HasMetaSentence(topic.Summary))
+            return "summary talks about 'the source/text'";
+
+        if (topic.TopicType is "Procedure" or "Diagnostic Test"
+            && topic.Actions?.FirstOrDefault(IsAftercareItem) is { } aftercare)
+            return $"actions contain aftercare ('{aftercare}')";
+
         return null;
     }
+
+    // Procedure/test "actions" are what it treats or tests for. Recovery steps, follow-ups and
+    // self-care instructions belong to the discharge pages and must not land there.
+    private static readonly System.Text.RegularExpressions.Regex AftercarePattern = new(
+        @"^(take|follow|avoid|wear|apply|applying|keep|do not|don't|learn|learning|arrang|rest\b|return|use of|wash|stop|talk to|call|ask|eat|drink)|\bfollow[- ]?up\b|\brecovery\b|\bpain (medic|manage|relief)\b|\bduring healing\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Quality issues the verifier can repair (content problems), as opposed to an empty or missing extraction.
+    internal static bool IsVerifiable(string? qualityIssue) =>
+        qualityIssue is null || qualityIssue.StartsWith("actions contain aftercare", StringComparison.Ordinal)
+        || qualityIssue.StartsWith("summary talks about", StringComparison.Ordinal);
+
+    internal static bool IsAftercareItem(string item) => AftercarePattern.IsMatch(item.Trim());
 
     internal static string GetSeenStatus(string topicType) => topicType switch
     {

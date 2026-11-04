@@ -148,8 +148,8 @@ public class DataIntegrityCheckServiceTests
 
     private sealed class FakeLlmProcessor : ILLMProcessor
     {
-        public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default, bool escalate = false) => throw new NotImplementedException();
+        public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default, bool escalate = false) => throw new NotImplementedException();
         public Task<Dictionary<string, string>> ClassifyTopicNamesAsync(IReadOnlyList<TopicClassifyInput> topics, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<Dictionary<string, string>> ClassifyTopicCategoriesAsync(IReadOnlyList<TopicCategoryInput> topics, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<BroaderNameResult> CompareBroaderNameAsync(string candidate, string existing, CancellationToken ct = default) => throw new NotImplementedException();

@@ -20,6 +20,11 @@ internal static class SemanticKernelBuilder
             apiKey: openAiKey
         );
 
+        // Optional stronger model for topics that already failed a quality check once; off unless configured.
+        var escalationModel = config["OpenAI:EscalationModel"];
+        if (!string.IsNullOrWhiteSpace(escalationModel))
+            builder.AddOpenAIChatCompletion(modelId: escalationModel, apiKey: openAiKey, serviceId: SemanticKernelLLMProcessor.EscalationServiceId);
+
         return builder.Build();
     }
 }
