@@ -13,6 +13,11 @@ internal sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Gl
         {
             await _next(context);
         }
+        catch (BadHttpRequestException)
+        {
+            // Unbindable route/query values: a client error, not a server fault (Development throws these; Production answers 400 itself)
+            await ProblemResponse.WriteAsync(context, StatusCodes.Status400BadRequest, "One or more request parameters are invalid.");
+        }
         catch (Exception ex)
         {
             var traceId = context.Items.TryGetValue("CorrelationId", out var cid) ? cid as string : null;
