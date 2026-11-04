@@ -350,6 +350,7 @@ public class TopicRefreshServiceTests
         public Task AddSeenTopicsAsync(IEnumerable<SeenTopic> topics, CancellationToken ct) => Task.CompletedTask;
         public Task<int> RenameAndRetypeAsync(string from, string to, string newType, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RetypeAsync(string name, string newType, CancellationToken ct) => Task.FromResult(0);
+        public Task<int> ClearIcd11CodesAsync(CancellationToken ct) => Task.FromResult(0);
         public Task<int> SanitizeAllAsync(CancellationToken ct) => Task.FromResult(0);
         public Task<int> ForceSourceRefreshAsync(CancellationToken ct) => Task.FromResult(0);
         public Task<int> FlagForReprocessingAsync(IReadOnlyCollection<string> topicTypes, IReadOnlyCollection<string> names, CancellationToken ct) => Task.FromResult(0);

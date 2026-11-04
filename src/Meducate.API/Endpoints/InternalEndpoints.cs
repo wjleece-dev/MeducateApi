@@ -41,6 +41,17 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: {Count} topics will re-fetch their source on the next refresh", count);
                 return Results.Ok(new { topics = count });
             });
+        internalRoutes.MapPost("/internal/topics/recode",
+            async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "recode");
+                if (authError is not null) return authError;
+
+                var cleared = await writeRepo.ClearIcd11CodesAsync(ct);
+                logger.LogInformation("Internal: cleared {Count} ICD-11 codes; the next refresh looks them up again", cleared);
+                return Results.Ok(new { cleared });
+            });
         internalRoutes.MapPost("/internal/topics/sanitize",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct) =>
             {

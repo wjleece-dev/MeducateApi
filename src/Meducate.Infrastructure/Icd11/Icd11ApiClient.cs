@@ -1,23 +1,22 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Meducate.Domain.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Meducate.Infrastructure.Icd11;
 
-internal sealed partial class Icd11ApiClient(
+internal sealed class Icd11ApiClient(
     HttpClient httpClient,
     IConfiguration config,
     ILogger<Icd11ApiClient> logger) : IIcd11CodingService
 {
     private const string TokenUrl = "https://icdaccessmanagement.who.int/connect/token";
 
-    // ponytail: release pinned to a specific WHO MMS release; WHO cuts a new one
-    // roughly yearly. Bump this when lookups start missing recently-added entities.
-    private const string SearchUrl = "https://id.who.int/icd/release/11/2024-01/mms/search";
+    // Release pinned to a specific WHO MMS release; WHO cuts a new one roughly yearly. When this changes,
+    // every stored code must be looked up again (POST /internal/topics/recode).
+    private const string SearchUrl = "https://id.who.int/icd/release/11/2026-01/mms/search";
 
     private readonly HttpClient _httpClient = httpClient;
     private readonly string _clientId = config["Icd11:ClientId"] ?? "";
@@ -44,7 +43,7 @@ internal sealed partial class Icd11ApiClient(
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(ct);
-            return ParseSearchResponse(json);
+            return ParseSearchResponse(json, topicName);
         }
         catch (Exception ex)
         {
@@ -53,42 +52,16 @@ internal sealed partial class Icd11ApiClient(
         }
     }
 
-    // WHO's search results are pre-sorted by relevance. Chapters/blocks in the
-    // hierarchy have no leaf "theCode" — only actual codeable entities do — so the
-    // first entity with a code is the best codeable match. No entity with a code
-    // means no confident match; we don't force one.
-    internal static Icd11Match? ParseSearchResponse(string json)
+    // WHO's search results are sorted by relevance, which is not identity, so the first coded hit is often a
+    // different condition. Icd11Matcher accepts a result only when it really is the topic; no match means no code.
+    internal static Icd11Match? ParseSearchResponse(string json, string topicName)
     {
         using var doc = JsonDocument.Parse(json);
 
-        if (!doc.RootElement.TryGetProperty("destinationEntities", out var entities) || entities.ValueKind != JsonValueKind.Array)
-            return null;
-
-        foreach (var entity in entities.EnumerateArray())
-        {
-            if (!entity.TryGetProperty("theCode", out var codeEl) || codeEl.ValueKind != JsonValueKind.String)
-                continue;
-
-            var code = codeEl.GetString();
-            if (string.IsNullOrWhiteSpace(code))
-                continue;
-
-            var title = entity.TryGetProperty("title", out var titleEl) ? StripHtmlTags(titleEl.GetString()) : null;
-            if (string.IsNullOrWhiteSpace(title))
-                continue;
-
-            return new Icd11Match(code, title);
-        }
-
-        return null;
+        return doc.RootElement.TryGetProperty("destinationEntities", out var entities) && entities.ValueKind == JsonValueKind.Array
+            ? Icd11Matcher.Select(topicName, entities)
+            : null;
     }
-
-    // WHO highlights matched terms in the title with inline HTML (e.g. <em class='found'>).
-    private static string? StripHtmlTags(string? title) =>
-        title is null ? null : HtmlTagRegex().Replace(title, "").Trim();
-
-    [GeneratedRegex("<.*?>")]
-    private static partial Regex HtmlTagRegex();
 
     private async Task<string> GetAccessTokenAsync(CancellationToken ct)
     {
