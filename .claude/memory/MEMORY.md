@@ -3,7 +3,7 @@
 # MeducateAPI Project Memory
 
 ## Project Overview
-Medical education REST API platform. Transforms raw health data (MedlinePlus, PubMed) into structured topics, categorised into 24 body-system/content-type categories, using GPT-4 via Semantic Kernel. Daily automated refresh via Hangfire jobs.
+Medical education REST API platform. Transforms raw health data (MedlinePlus, PubMed) into structured topics, categorised into 26 body-system/content-type categories, using OpenAI (gpt-4o-mini by default) via Semantic Kernel. Daily automated refresh via Hangfire jobs.
 
 - **Domain**: meducateapi.com (API: api.meducateapi.com)
 - **Hosting**: Railway (hobby tier), Cloudflare CDN/DNS
@@ -25,12 +25,12 @@ Clean Architecture with 6 projects. See [architecture.md](architecture.md) for f
 - **HealthTopic** — core medical topic with structured fields (summary, observations, factors, actions, citations)
 - **User** — passwordless magic-link auth (no passwords)
 - **Organisation** — owns API keys (max 5 active)
-- **ApiClient** — API key with bcrypt hashing, daily limits
+- **ApiClient** — API key with PBKDF2-SHA256 hashing, daily limits
 - **ApiUsageLog** — per-request tracking, GDPR-compliant IP truncation
 - **SeenTopic** — deduplication for discovery pipeline
 
 ## Auth Flow
-Magic-link email → verify token → cookie `meducateapi_auth` (8hr expiry, 7-day max, sliding renewal). CSRF via `X-Requested-By` header. Security stamp checked every 5 min.
+Magic-link email → verify token → cookie `meducateapi_auth` (3-day sliding expiry, 7-day max). CSRF via `X-Requested-By` header. Security stamp checked every 5 min.
 
 ## User Preferences
 - **Commits**: Squash everything into single commit, amend + force push. Same commit message: "MeducateAPI - Medical education API platform"
@@ -52,6 +52,6 @@ See [architecture.md](architecture.md) for comprehensive file listing.
 
 ## External Services
 - **Resend** — email delivery (magic links, rate limit alerts)
-- **OpenAI GPT-4** — topic extraction/classification via Semantic Kernel
+- **OpenAI** (gpt-4o-mini, optional `OpenAI:EscalationModel`) — topic extraction/classification via Semantic Kernel
 - **MedlinePlus + PubMed** — data sources
 - **Hangfire** — background jobs (discovery 2AM UTC, refresh 3AM UTC)

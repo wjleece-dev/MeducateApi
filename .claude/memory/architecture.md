@@ -3,26 +3,29 @@
 ## API Endpoints
 
 ### Topics (require API key via `X-Api-Key` header)
-- `GET /api/topics` — paginated list (skip, take, type)
-- `GET /api/topics/search?query=` — search by name
-- `GET /api/topics/{name}` — single topic by exact name
-- `GET /api/topics/types` — available topic types
+- `GET /api/v1/topics` — paginated list (skip, take, type)
+- `GET /api/v1/topics/search?query=` — search by name
+- `GET /api/v1/topics/{name}` — single topic by exact name
+- `GET /api/v1/topics/types` — available topic types
+- `GET /api/v1/topics/categories` — categories with counts
+- `GET /api/v1/topics/icd11/{code}` — topic by WHO ICD-11 code
+- `GET /api/v1/topics/changes?since=` — topics added or updated since a time
 
 ### Auth
-- `POST /api/users/register` — request magic link
-- `POST /api/users/verify` — verify token, set cookie
-- `POST /api/auth/logout` — sign out
-- `GET /api/users/me` — current user info
-- `DELETE /api/users/me` — delete account (requires fresh auth <10min)
+- `POST /api/v1/users/register` — request magic link
+- `POST /api/v1/users/verify` — verify token, set cookie
+- `POST /api/v1/auth/logout` — sign out
+- `GET /api/v1/users/me` — current user info
+- `DELETE /api/v1/users/me` — delete account (requires fresh auth <10min)
 
 ### Organisations (authenticated)
-- `POST /api/orgs` — create org
-- `POST /api/orgs/{id}/keys` — generate API key
-- `GET /api/orgs/{id}/keys` — list keys + usage
-- `PATCH /api/orgs/{orgId}/keys/{keyId}` — rename key
-- `DELETE /api/orgs/{orgId}/keys/{keyId}` — revoke key
-- `GET /api/orgs/{id}/usage/history` — 7-day daily usage
-- `GET /api/orgs/{id}/usage/top-endpoints` — top 5 endpoints
+- `POST /api/v1/orgs` — create org
+- `POST /api/v1/orgs/{id}/keys` — generate API key
+- `GET /api/v1/orgs/{id}/keys` — list keys + usage
+- `PATCH /api/v1/orgs/{orgId}/keys/{keyId}` — rename key
+- `DELETE /api/v1/orgs/{orgId}/keys/{keyId}` — revoke key
+- `GET /api/v1/orgs/{id}/usage/history` — 7-day daily usage
+- `GET /api/v1/orgs/{id}/usage/top-endpoints` — top 5 endpoints
 
 ### System
 - `GET /health` (API) — DB health check
@@ -34,7 +37,7 @@
 3. SecurityHeadersMiddleware (CSP, X-Frame-Options, etc.)
 4. CorrelationIdMiddleware (X-Correlation-Id)
 5. RequestTimingMiddleware
-6. RateLimiter (60 req/min per key or IP)
+6. RateLimiter (300 req/min per client address; the 60 req/min per-key limit is applied after authentication in ApiKeyMiddleware)
 7. Authentication/Authorization (cookie-based)
 8. CsrfProtectionMiddleware (X-Requested-By for mutations)
 9. ApiKeyMiddleware (validates X-Api-Key, caches 30s, enforces daily limits)
@@ -64,7 +67,7 @@
 | TopicIngestionService | Application | Discovery pipeline orchestration |
 | TopicRefreshService | Application | Refresh existing topics on source change |
 | TopicBackfillService | Application | Backfill missing fields |
-| SemanticKernelLLMProcessor | Infrastructure/LLM | GPT-4 extraction/classification |
+| SemanticKernelLLMProcessor | Infrastructure/LLM | OpenAI extraction/classification (TextCleaner post-processes output) |
 | ApiKeyService | Infrastructure/ApiKeys | Key CRUD, validation, usage tracking |
 | EmailService | Infrastructure/Email | Resend-based email delivery |
 | MedlinePlusDataProvider | Infrastructure/DataProviders | MedlinePlus XML source |
