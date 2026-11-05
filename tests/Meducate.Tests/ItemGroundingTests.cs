@@ -7,49 +7,54 @@ namespace Meducate.Tests;
 public class ItemGroundingTests
 {
     private const string Source = "Symptoms include fever and chills, pain and swelling in the area. " +
-        "Treatment is draining the abscess and sometimes antibiotics. It is more common in people with diabetes.";
+        "Treatment is draining the abscess and sometimes antibiotics. It is more common in women with diabetes.";
 
     private static HealthTopic Topic() => new()
     {
         Name = "Abscess",
         Observations = ["Fever and chills", "Pain and swelling", "Hair loss"],
-        Factors = ["Diabetes"],
+        Factors = ["Diabetes", "Female gender", "Genetic predisposition"],
         Actions = ["Draining the abscess", "Antibiotics"],
     };
 
-    private static ItemJudgement Yes(string field, string item, string quote) => new(field, item, true, quote);
     private static ItemJudgement No(string field, string item) => new(field, item, false, null);
+    private static ItemJudgement Yes(string field, string item) => new(field, item, true, "quote");
 
     [Fact]
-    public void Apply_DropsItemsTheJudgeRejects_AndKeepsTheRest()
+    public void Apply_DropsAnItemOnlyWhenTheJudgeRejectsItAndItsWordsAreAbsentFromTheSource()
     {
         var topic = Topic();
         var outcome = ItemGrounding.Apply(topic, Source,
         [
-            Yes("observations", "Fever and chills", "include fever and chills, pain and swelling"),
-            Yes("observations", "Pain and swelling", "fever and chills, pain and swelling in the area"),
-            No("observations", "Hair loss"),
-            Yes("factors", "Diabetes", "more common in people with diabetes"),
+            No("observations", "Hair loss"),                // judge says no, words absent: dropped
+            No("factors", "Genetic predisposition"),        // judge says no, words absent: dropped
         ]);
 
         Assert.Equal(["Fever and chills", "Pain and swelling"], topic.Observations);
-        Assert.Equal(["Diabetes"], topic.Factors);
-        Assert.Equal(["Draining the abscess", "Antibiotics"], topic.Actions); // not judged, so kept
-        Assert.Equal("Hair loss", Assert.Single(outcome.Dropped).Item);
+        Assert.Equal(["Diabetes", "Female gender"], topic.Factors);
+        Assert.Equal(2, outcome.Dropped.Count);
     }
 
     [Fact]
-    public void Apply_DropsAnApprovalWhoseQuoteIsNotInTheSource()
+    public void Apply_KeepsAnItemTheJudgeRejectsWhenTheSourceUsesItsWords()
     {
+        // The judge was wrong about this one in real runs: the symptom is listed in the source.
         var topic = Topic();
-        var outcome = ItemGrounding.Apply(topic, Source,
-        [
-            Yes("observations", "Fever and chills", "include fever and chills, pain and swelling"),
-            Yes("observations", "Hair loss", "Hair loss is a common sign of abscesses"),
-        ]);
+        var outcome = ItemGrounding.Apply(topic, Source, [No("observations", "Fever and chills")]);
 
-        Assert.DoesNotContain("Hair loss", topic.Observations!);
-        Assert.Contains("not found in source", Assert.Single(outcome.Dropped).Reason);
+        Assert.Empty(outcome.Dropped);
+        Assert.Contains("Fever and chills", topic.Observations!);
+    }
+
+    [Fact]
+    public void Apply_KeepsAnItemWhoseWordsAreAbsentWhenTheJudgeApprovesIt()
+    {
+        // "Female gender" is backed by "women"; no word overlap, but the judge understood it.
+        var topic = Topic();
+        var outcome = ItemGrounding.Apply(topic, Source, [Yes("factors", "Female gender")]);
+
+        Assert.Empty(outcome.Dropped);
+        Assert.Contains("Female gender", topic.Factors!);
     }
 
     [Fact]
@@ -64,12 +69,11 @@ public class ItemGroundingTests
     [Fact]
     public void Apply_NeverEmptiesAField()
     {
-        var topic = Topic();
-        var outcome = ItemGrounding.Apply(topic, Source, [No("factors", "Diabetes"), No("observations", "Hair loss")]);
+        var topic = new HealthTopic { Name = "X", Observations = ["Hair loss"], Factors = ["Diabetes"], Actions = ["Antibiotics"] };
+        var outcome = ItemGrounding.Apply(topic, Source, [No("observations", "Hair loss")]);
 
-        Assert.Equal(["Diabetes"], topic.Factors);
-        Assert.DoesNotContain("Hair loss", topic.Observations!);
-        Assert.Single(outcome.Dropped);
+        Assert.Equal(["Hair loss"], topic.Observations);
+        Assert.Empty(outcome.Dropped);
     }
 
     [Fact]
@@ -79,6 +83,7 @@ public class ItemGroundingTests
         var outcome = ItemGrounding.Apply(topic, Source,
         [
             No("observations", "Fever and chills"), No("observations", "Pain and swelling"), No("observations", "Hair loss"),
+            No("factors", "Diabetes"), No("factors", "Genetic predisposition"),
             No("actions", "Draining the abscess"), No("actions", "Antibiotics"),
         ]);
 
@@ -95,5 +100,16 @@ public class ItemGroundingTests
 
         Assert.Single(outcome.Dropped);
         Assert.Contains("Hair loss", topic.Observations!);
+    }
+
+    [Theory]
+    [InlineData("Fever and chills", 1.0)]
+    [InlineData("Hair loss", 0.0)]
+    [InlineData("Swelling or hair loss", 0.33)]   // swelling found, hair and loss are not
+    [InlineData("and the", 1.0)]                  // nothing to check
+    public void Coverage_IsTheShareOfContentWordsFoundInTheSource(string item, double expected)
+    {
+        var source = ItemGrounding.Words(Source).ToHashSet();
+        Assert.Equal(expected, ItemGrounding.Coverage(item, source), 2);
     }
 }

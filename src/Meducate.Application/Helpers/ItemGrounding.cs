@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Meducate.Domain.Entities;
 using Meducate.Domain.Services;
 
@@ -8,13 +9,30 @@ internal sealed record GroundingDrop(string Field, string Item, string Reason);
 // Reason is set when the judge's verdicts were not applied at all.
 internal sealed record GroundingOutcome(IReadOnlyList<GroundingDrop> Dropped, string? Rejected = null);
 
-// Turns the model's per-item verdicts into removals. An item stays unless the model said the source does not back it,
-// or said it does but cannot point to words in the source that show it (QuoteMatcher). Anything the model did not
-// judge stays: the check must never remove content because of a missing or garbled reply.
-internal static class ItemGrounding
+// Removes list items the source does not back. Two independent signals must agree, because each alone is wrong
+// too often to delete on (measured on 216 topics: the model alone was wrong about half the time, and word overlap
+// alone cannot tell "women" from "female gender"):
+//   1. the model says the source does not support the item, and
+//   2. fewer than half of the item's content words appear anywhere in the source.
+// Anything the model did not judge stays, so a missing or garbled reply never removes content.
+internal static partial class ItemGrounding
 {
+    private const double MinWordCoverage = 0.5;
     private const double MaxDropShare = 0.8;
     private const int MinItemsForShareGuard = 4;
+
+    private static readonly HashSet<string> Filler = new(StringComparer.Ordinal)
+    {
+        "the", "and", "for", "with", "from", "that", "this", "these", "those", "than", "then", "such", "into", "also",
+        "may", "can", "could", "should", "would", "not", "other", "more", "most", "some", "any", "all", "your", "you", "have", "has", "had",
+        "are", "was", "were", "been", "its",
+    };
+
+    [GeneratedRegex("[^a-z0-9 ]")]
+    private static partial Regex NonAlphanumeric();
+
+    [GeneratedRegex("(ing|ed|es|s|ly)$")]
+    private static partial Regex Suffix();
 
     internal static GroundingOutcome Apply(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements)
     {
@@ -34,7 +52,7 @@ internal static class ItemGrounding
         if (judgements is not { Count: > 0 })
             return new GroundingOutcome([]);
 
-        var source = QuoteMatcher.Tokens(rawText);
+        var sourceWords = Words(rawText).ToHashSet();
         var lists = new (string Field, List<string>? Items)[]
         {
             ("observations", topic.Observations), ("factors", topic.Factors), ("actions", topic.Actions),
@@ -50,17 +68,16 @@ internal static class ItemGrounding
             var fieldDrops = new List<GroundingDrop>();
             foreach (var item in items)
             {
-                var verdict = judgements.FirstOrDefault(j => j.Field == field && string.Equals(j.Item, item, StringComparison.OrdinalIgnoreCase));
+                var verdict = judgements.FirstOrDefault(j => j.Field == field && !j.Supported
+                    && string.Equals(j.Item, item, StringComparison.OrdinalIgnoreCase));
                 if (verdict is null)
                     continue;
 
-                if (!verdict.Supported)
-                    fieldDrops.Add(new GroundingDrop(field, item, "judge: not in source"));
-                else if (!QuoteMatcher.Supports(source, verdict.Quote, item))
-                    fieldDrops.Add(new GroundingDrop(field, item, $"judge approved but quote not found in source: \"{verdict.Quote}\""));
+                proposed++;
+                var coverage = Coverage(item, sourceWords);
+                if (coverage < MinWordCoverage)
+                    fieldDrops.Add(new GroundingDrop(field, item, $"judge: not in source; {coverage:P0} of its words appear in the source"));
             }
-
-            proposed += fieldDrops.Count;
 
             // Emptying a list would just send the topic round the reprocess loop; leave such a field for that path.
             if (fieldDrops.Count < items.Count)
@@ -73,6 +90,19 @@ internal static class ItemGrounding
 
         return new GroundingOutcome(dropped);
     }
+
+    // Share of the item's content words found in the source (1 when it has none to check).
+    internal static double Coverage(string item, HashSet<string> sourceWords)
+    {
+        var words = Words(item).Distinct().ToList();
+        return words.Count == 0 ? 1 : (double)words.Count(sourceWords.Contains) / words.Count;
+    }
+
+    internal static IEnumerable<string> Words(string text) =>
+        NonAlphanumeric().Replace(System.Net.WebUtility.HtmlDecode(text).ToLowerInvariant(), " ")
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 3 && !Filler.Contains(w))
+            .Select(w => Suffix().Replace(w, ""));
 
     private static List<string>? Without(List<string>? items, string field, IReadOnlyList<GroundingDrop> dropped) =>
         items?.Where(i => !dropped.Any(d => d.Field == field && string.Equals(d.Item, i, StringComparison.OrdinalIgnoreCase))).ToList();
