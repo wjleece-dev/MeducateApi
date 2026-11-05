@@ -57,7 +57,7 @@ internal static class ItemGrounding
                 if (!verdict.Supported)
                     fieldDrops.Add(new GroundingDrop(field, item, "judge: not in source"));
                 else if (!QuoteMatcher.Supports(source, verdict.Quote))
-                    fieldDrops.Add(new GroundingDrop(field, item, "judge approved but quote not found in source"));
+                    fieldDrops.Add(new GroundingDrop(field, item, $"judge approved but quote not found in source: \"{verdict.Quote}\""));
             }
 
             proposed += fieldDrops.Count;
