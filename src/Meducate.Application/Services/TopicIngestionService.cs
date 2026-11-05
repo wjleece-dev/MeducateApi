@@ -205,6 +205,14 @@ internal sealed class TopicIngestionService(
                 {
                     await Task.Delay(LlmThrottle, ct);
                     structured = await _llmProcessor.VerifyHealthTopicAsync(mergedRawSource, structured, ct) ?? structured;
+
+                    // Last gate: drop list items the source does not back (quote-checked, see ItemGrounding)
+                    await Task.Delay(LlmThrottle, ct);
+                    var grounding = ItemGrounding.Apply(structured, mergedRawSource,
+                        await _llmProcessor.JudgeListItemsAsync(mergedRawSource, structured, ct));
+                    if (grounding.Dropped.Count > 0 || grounding.Rejected is not null)
+                        _logger.LogInformation("Grounding '{Name}': dropped {Count} unsupported items{Rejected}",
+                            group.Key, grounding.Dropped.Count, grounding.Rejected is null ? "" : $" ({grounding.Rejected})");
                 }
 
                 if (structured is null)

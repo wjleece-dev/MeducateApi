@@ -223,6 +223,37 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             executionSettings: JsonResponseFormat
         );
 
+    private readonly KernelFunction _groundFunction = kernel.CreateFunctionFromPrompt(
+            """
+            You are a strict fact-checker for a medical education API. Below is a SOURCE TEXT and a numbered list
+            of items that were extracted from it for the topic "{{$topicName}}". Decide, for each item, whether the
+            source supports it.
+
+            {{$typeInstructions}}
+
+            RULES:
+            - An item is supported only if the source states it, or directly implies it about THIS topic.
+            - General medical knowledge that is not in the source does NOT count, however true it is.
+            - Generic risk factors (age, sex, genetics, family history, obesity, smoking, alcohol, medicines)
+              count only if the source says them about this topic.
+            - A broader or narrower wording of something the source says is still supported.
+            - For every supported item give a short verbatim quote from the source (at most 25 words) that
+              backs it. Copy the words exactly. If you cannot quote anything, the item is not supported.
+            - Judge every id. Do not rewrite or merge items.
+
+            Return raw JSON only, no code fences, no explanation.
+            Schema: {"items":[{"id":0,"supported":true,"quote":"..."}]}
+
+            SOURCE TEXT:
+            {{$rawText}}
+
+            ITEMS:
+            {{$itemsJson}}
+            """,
+            functionName: "GroundListItems",
+            executionSettings: JsonResponseFormat
+        );
+
     private readonly KernelFunction _classifyFunction = kernel.CreateFunctionFromPrompt(
             """
             You are a medical terminology classifier. You will receive a list of health
@@ -716,6 +747,53 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             _logger?.LogWarning("LLM verification corrected extracted content for topic '{Topic}'", extracted.Name);
 
         return corrected;
+    }
+
+    private sealed record JudgeReply(List<JudgeReplyItem>? Items);
+
+    private sealed record JudgeReplyItem(int Id, bool Supported, string? Quote);
+
+    public async Task<IReadOnlyList<ItemJudgement>?> JudgeListItemsAsync(string rawText, HealthTopic topic, CancellationToken ct = default, bool escalate = false)
+    {
+        ArgumentNullException.ThrowIfNull(topic);
+
+        var items = new List<(string Field, string Item)>();
+        items.AddRange((topic.Observations ?? []).Select(i => ("observations", i)));
+        items.AddRange((topic.Factors ?? []).Select(i => ("factors", i)));
+        items.AddRange((topic.Actions ?? []).Select(i => ("actions", i)));
+        if (items.Count == 0 || string.IsNullOrWhiteSpace(rawText))
+            return [];
+
+        var itemsJson = JsonSerializer.Serialize(items.Select((x, id) => new { id, field = x.Field, text = x.Item }));
+
+        var result = await _kernel.InvokeAsync(
+            _groundFunction,
+            Arguments(escalate, ("rawText", rawText), ("typeInstructions", GetTypeInstructions(topic.TopicType)),
+                ("topicName", topic.Name), ("itemsJson", itemsJson)),
+            ct);
+
+        var json = result.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        JudgeReply? reply;
+        try
+        {
+            reply = JsonSerializer.Deserialize<JudgeReply>(CleanupJson(json), _jsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            _logger?.LogWarning(ex, "Grounding reply for '{Topic}' was not valid JSON; keeping all items", topic.Name);
+            return null;
+        }
+
+        if (reply?.Items is null)
+            return null;
+
+        return [.. reply.Items
+            .Where(r => r.Id >= 0 && r.Id < items.Count)
+            .DistinctBy(r => r.Id)
+            .Select(r => new ItemJudgement(items[r.Id].Field, items[r.Id].Item, r.Supported, r.Quote))];
     }
 
     private static readonly HashSet<string> ValidTopicTypes = new(StringComparer.OrdinalIgnoreCase)

@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using Hangfire;
+using Meducate.Application.Helpers;
+using Meducate.Domain.Entities;
 using Meducate.Application.Jobs;
 using Meducate.Domain.Repositories;
 
@@ -100,6 +102,48 @@ internal static class InternalEndpoints
                 var (applied, notFound) = await writeRepo.EditListItemsAsync(edits, ct);
                 logger.LogInformation("Internal: edited list items ({Applied} applied, {NotFound} not found)", applied, notFound);
                 return Results.Ok(new { applied, notFound });
+            });
+        // Runs the grounding judge over stored topics, a page at a time. Dry run unless apply=true, so a result can be
+        // reviewed before anything is removed. Stops cleanly if the daily LLM budget runs out.
+        internalRoutes.MapPost("/internal/topics/ground",
+            async (HttpContext http, ITopicQueryRepository queryRepo, ITopicWriteRepository writeRepo, Meducate.Domain.Services.ILLMProcessor llm, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct,
+                int skip = 0, int count = 10, string? name = null, bool apply = false) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "ground");
+                if (authError is not null) return authError;
+
+                List<HealthTopic> topics;
+                if (!string.IsNullOrWhiteSpace(name))
+                    topics = (await queryRepo.GetByNameTrackedAsync(name, ct) is { } one) ? [one] : [];
+                else
+                    topics = await queryRepo.GetServedTopicBatchAsync(Math.Max(0, skip), Math.Clamp(count, 1, 10), ct);
+
+                var results = new List<object>();
+                var edits = new List<Meducate.Domain.Services.ItemEdit>();
+                var stoppedByBudget = false;
+                foreach (var topic in topics)
+                {
+                    if (string.IsNullOrWhiteSpace(topic.RawSource))
+                        continue;
+
+                    try
+                    {
+                        var judgements = await llm.JudgeListItemsAsync(topic.RawSource, topic, ct);
+                        var outcome = ItemGrounding.Evaluate(topic, topic.RawSource, judgements);
+                        edits.AddRange(outcome.Dropped.Select(d => new Meducate.Domain.Services.ItemEdit(topic.Name, d.Field, d.Item)));
+                        results.Add(new { topic.Name, judged = judgements?.Count ?? 0, dropped = outcome.Dropped, outcome.Rejected });
+                    }
+                    catch (Meducate.Domain.Services.LlmBudgetExceededException)
+                    {
+                        stoppedByBudget = true;
+                        break;
+                    }
+                }
+
+                (int Applied, int NotFound)? applied = apply && edits.Count > 0 ? await writeRepo.EditListItemsAsync(edits, ct) : null;
+                logger.LogInformation("Internal: grounding checked {Topics} topics, {Drops} unsupported items, applied={Applied}", results.Count, edits.Count, apply);
+                return Results.Ok(new { checkedTopics = results.Count, unsupportedItems = edits.Count, applied = applied?.Applied, stoppedByBudget, results });
             });
         internalRoutes.MapGet("/internal/seen",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, string name, CancellationToken ct) =>
