@@ -19,11 +19,25 @@ public class QuoteMatcherTests
     [Theory]
     [InlineData("Obesity is a major risk factor for abscesses")]               // invented
     [InlineData("Pus formation is the main sign")]                              // plausible but not there
-    [InlineData("pain")]                                                        // too short to prove anything
     [InlineData("")]
     [InlineData(null)]
     public void Supports_RejectsQuotesThatAreInventedOrTooShort(string? quote) =>
         Assert.False(QuoteMatcher.Supports(Source, quote));
+
+    [Theory]
+    // The model glues a lead-in from elsewhere onto the item's own line: the item part is what must be in the source.
+    [InlineData("Symptoms may include: Fever and chills, pain and swelling in the area.", "Fever and chills")]
+    [InlineData("Risk factors: more common in people who have diabetes", "Diabetes")]
+    [InlineData("Symptoms may include: pain", "Pain")]                         // short fragment, but exactly present
+    public void Supports_AcceptsAStitchedLeadInWhenTheItemPartIsInTheSource(string quote, string item) =>
+        Assert.True(QuoteMatcher.Supports(Source, quote, item));
+
+    [Theory]
+    [InlineData("Symptoms may include: Hair loss", "Hair loss")]               // lead-in is real, item part is not
+    [InlineData("Symptoms may include", "Hair loss")]                          // lead-in alone proves nothing
+    [InlineData("pain", "Obesity")]                                            // in the source but unrelated to the item
+    public void Supports_RejectsALeadInThatIsNotAboutTheItem(string quote, string item) =>
+        Assert.False(QuoteMatcher.Supports(Source, quote, item));
 
     [Fact]
     public void Supports_RejectsWordsThatAreScatteredAcrossTheSource()
