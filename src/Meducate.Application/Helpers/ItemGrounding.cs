@@ -31,7 +31,7 @@ internal static partial class ItemGrounding
     [GeneratedRegex("[^a-z0-9 ]")]
     private static partial Regex NonAlphanumeric();
 
-    [GeneratedRegex("(ing|ed|es|s|ly)$")]
+    [GeneratedRegex("(ing|ed|es|s|ly|ity|e)$")]
     private static partial Regex Suffix();
 
     internal static GroundingOutcome Apply(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements)
@@ -53,6 +53,7 @@ internal static partial class ItemGrounding
             return new GroundingOutcome([]);
 
         var sourceWords = Words(rawText).ToHashSet();
+        var sourceText = Normalise(rawText);
         var lists = new (string Field, List<string>? Items)[]
         {
             ("observations", topic.Observations), ("factors", topic.Factors), ("actions", topic.Actions),
@@ -74,7 +75,7 @@ internal static partial class ItemGrounding
                     continue;
 
                 proposed++;
-                var coverage = Coverage(item, sourceWords);
+                var coverage = Coverage(item, sourceWords, sourceText);
                 if (coverage < MinWordCoverage)
                     fieldDrops.Add(new GroundingDrop(field, item, $"judge: not in source; {coverage:P0} of its words appear in the source"));
             }
@@ -91,15 +92,19 @@ internal static partial class ItemGrounding
         return new GroundingOutcome(dropped);
     }
 
-    // Share of the item's content words found in the source (1 when it has none to check).
-    internal static double Coverage(string item, HashSet<string> sourceWords)
+    // Share of the item's content words found in the source (1 when it has none to check). A word also counts when
+    // the source contains its first five letters, so obese/obesity and blockage/blockages are not mistaken for gaps.
+    internal static double Coverage(string item, HashSet<string> sourceWords, string sourceText)
     {
         var words = Words(item).Distinct().ToList();
-        return words.Count == 0 ? 1 : (double)words.Count(sourceWords.Contains) / words.Count;
+        return words.Count == 0 ? 1 : (double)words.Count(w => sourceWords.Contains(w) || (w.Length >= 5 && sourceText.Contains(w[..5]))) / words.Count;
     }
 
+    private static string Normalise(string text) =>
+        NonAlphanumeric().Replace(System.Net.WebUtility.HtmlDecode(text).ToLowerInvariant(), " ");
+
     internal static IEnumerable<string> Words(string text) =>
-        NonAlphanumeric().Replace(System.Net.WebUtility.HtmlDecode(text).ToLowerInvariant(), " ")
+        Normalise(text)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 3 && !Filler.Contains(w))
             .Select(w => Suffix().Replace(w, ""));

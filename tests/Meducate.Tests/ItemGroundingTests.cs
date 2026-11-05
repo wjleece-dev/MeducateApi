@@ -107,9 +107,20 @@ public class ItemGroundingTests
     [InlineData("Hair loss", 0.0)]
     [InlineData("Swelling or hair loss", 0.33)]   // swelling found, hair and loss are not
     [InlineData("and the", 1.0)]                  // nothing to check
-    public void Coverage_IsTheShareOfContentWordsFoundInTheSource(string item, double expected)
+    public void Coverage_IsTheShareOfContentWordsFoundInTheSource(string item, double expected) =>
+        Assert.Equal(expected, ItemGrounding.Coverage(item, ItemGrounding.Words(Source).ToHashSet(), Source.ToLowerInvariant()), 2);
+
+    [Theory]
+    [InlineData("Obesity", "Obese men are at higher risk.")]            // real false drops seen in calibration
+    [InlineData("Blockages", "Problems include infections, blockage, and cancer.")]
+    public void Coverage_CountsRelatedWordFormsAsPresent(string item, string source) =>
+        Assert.Equal(1.0, ItemGrounding.Coverage(item, ItemGrounding.Words(source).ToHashSet(), source.ToLowerInvariant()), 2);
+
+    [Fact]
+    public void Coverage_KeepsAnItemWhenHalfItsWordsAreFound()
     {
-        var source = ItemGrounding.Words(Source).ToHashSet();
-        Assert.Equal(expected, ItemGrounding.Coverage(item, source), 2);
+        // "Poor nutrition" vs "malnutrition": nutrition is found, poor is not, so 50% and the item is not dropped.
+        const string source = "Causes include malnutrition (when severe).";
+        Assert.True(ItemGrounding.Coverage("Poor nutrition", ItemGrounding.Words(source).ToHashSet(), source) >= 0.5);
     }
 }
