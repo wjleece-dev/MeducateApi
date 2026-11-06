@@ -124,6 +124,22 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
         Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("suggestions").ValueKind);
     }
 
+    [Theory]
+    [InlineData("/api/v1/topics/No%2FSuch%20Topic")]
+    [InlineData("/api/v1/topics/No/Such%20Topic")]
+    public async Task TopicNamesWithASlash_ReachTheTopicLookup(string path)
+    {
+        var client = NewClient(factory);
+        client.DefaultRequestHeaders.Add("X-Api-Key", ApiConstants.DemoRawKey);
+
+        var response = await client.GetAsync(path);
+
+        // A routing miss would be a bare 404; reaching the handler gives the guidance body.
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Contains("/topics/search", doc.RootElement.GetProperty("detail").GetString());
+    }
+
     [Fact]
     public async Task Swagger_ExposesOnlyThePublicSurface()
     {

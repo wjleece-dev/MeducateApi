@@ -61,7 +61,7 @@
                 "name": "Where does the medical data come from?",
                 "acceptedAnswer": {
                     "@@type": "Answer",
-                    "text": "Data originates from MedlinePlus, the U.S. National Library of Medicine's health information service covering over 2,000 topics. It is supplemented with research context from PubMed. All data is processed and structured daily."
+                    "text": "Data originates from MedlinePlus, the U.S. National Library of Medicine's health information service covering around 1,000 topics. It is supplemented with research context from PubMed. The source is checked daily and a topic is re-processed when its source changes."
                 }
             },
             {
@@ -69,7 +69,7 @@
                 "name": "How often is the data updated?",
                 "acceptedAnswer": {
                     "@@type": "Answer",
-                    "text": "Meducate runs automated background jobs daily to refresh, reprocess, and restructure medical topic data. API responses always reflect the latest processed dataset."
+                    "text": "Meducate runs automated background jobs daily to discover new topics, check existing sources for changes, and re-process topics whose source changed. API responses reflect the latest processed dataset."
                 }
             },
             {
@@ -170,18 +170,33 @@
             <hr>
 
             <h2 class="fw-semibold">Where does the medical data come from?</h2>
-            <p>Data originates from <strong>MedlinePlus</strong>, the U.S. National Library of Medicine's health information service covering over 2,000 health topics. It is supplemented with research context from <strong>PubMed</strong>, the NLM's peer-reviewed biomedical literature database.</p>
-            <p>A topic only appears in Meducate if it is listed on MedlinePlus. All data is processed daily and topics removed from the source are automatically retired from the API.</p>
+            <p>Data originates from <strong>MedlinePlus</strong>, the U.S. National Library of Medicine's health information service covering around 1,000 health topics. It is supplemented with research context from <strong>PubMed</strong>, the NLM's peer-reviewed biomedical literature database.</p>
+            <p>A topic only appears in Meducate if it is listed on MedlinePlus. The source is checked daily and topics removed from the source are automatically retired from the API.</p>
 
             <hr>
 
             <h2 class="fw-semibold">How often is the data updated?</h2>
-            <p>Meducate runs automated background jobs daily to discover new topics, refresh existing data, and regenerate structured summaries. API responses always serve the latest processed dataset.</p>
+            <p>Meducate runs automated background jobs daily to discover new topics, check existing sources for changes, and regenerate the summaries of topics whose source changed. API responses serve the latest processed dataset.</p>
 
             <hr>
 
             <h2 class="fw-semibold">Can I use Meducate API for clinical decision-making?</h2>
             <p>No. Meducate API is for <strong>educational and informational use only</strong>. It does not constitute medical advice, diagnosis, or treatment recommendations. Always consult a qualified healthcare professional for clinical decisions.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Is the content written or reviewed by clinicians?</h2>
+            <p>No. Topics are generated from MedlinePlus and PubMed text by a language model and have not been clinically reviewed. Automated checks reduce errors: each list item is checked against the source text before publishing, and a rotating batch of topics is re-checked against its source every night. Each topic names its source organisations in <code>citations</code>; go to the source for anything that matters.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Can I cache the data?</h2>
+            <p>Yes, and you should. Responses carry an <code>ETag</code>, and <code>GET /api/v1/topics/changes?since=&lt;timestamp&gt;</code> returns only the topics added or updated since a given time, so you can keep a local copy current without downloading everything again.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Is there an uptime guarantee?</h2>
+            <p>No. Meducate is a small, independently run service with no service-level agreement. Current status is at <a href="https://api.meducateapi.com/health" target="_blank" rel="noopener">api.meducateapi.com/health</a>.</p>
 
             <hr>
 

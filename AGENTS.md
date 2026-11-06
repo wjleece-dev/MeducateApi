@@ -6,7 +6,7 @@ Context for Claude sessions working on MeducateAPI. Keep this file up to date as
 
 ## What this project is
 
-MeducateAPI is a medical education REST API that automatically discovers health topics from MedlinePlus and PubMed, processes them through GPT-4 via Semantic Kernel, and serves structured data (summary, observations, risk factors, actions, citations) over a clean API. It is a portfolio project hosted live at [meducateapi.com](https://meducateapi.com).
+MeducateAPI is a medical education REST API that automatically discovers health topics from MedlinePlus and PubMed, processes them through an OpenAI model (gpt-4o-mini by default) via Semantic Kernel, and serves structured data (summary, observations, risk factors, actions, citations) over a clean API. It is a portfolio project hosted live at [meducateapi.com](https://meducateapi.com).
 
 - **Web dashboard**: meducateapi.com (Blazor Server)
 - **REST API**: api.meducateapi.com (ASP.NET Core Minimal APIs)
@@ -129,7 +129,7 @@ Health checks (unauthenticated): `GET /health`, `/health/live`, `/health/ready`.
 
 On non-development startup, `TopicRefreshJob` is enqueued immediately to catch up on any missed run.
 
-Hangfire dashboard: `/hangfire`, protected by `HangfireDashboardAuthFilter` — a standalone shared-password scheme unrelated to user auth. Password comes from `Hangfire:DashboardPassword` config, submitted via `?password=` query string, then remembered in its own `HangfireAuth` cookie (12hr).
+Hangfire dashboard: `/hangfire`, protected by `HangfireDashboardAuthFilter` — a standalone shared-password scheme unrelated to user auth. Password comes from `Hangfire:DashboardPassword` config, submitted through the `/hangfire-login` form (POST), then remembered in its own `HangfireSession` cookie.
 
 ---
 

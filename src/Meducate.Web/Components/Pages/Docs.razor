@@ -60,7 +60,7 @@
 
             <p>All health topics are classified by type (Disease, Drug, Procedure, etc.) and assigned to categories grouped by body system, such as Respiratory System, Circulatory System, and Mental & Behavioral.</p>
 
-            <p>Source data is reprocessed and summarised <strong>daily</strong> by automated background jobs.</p>
+            <p>Source data is checked <strong>daily</strong> by automated background jobs, and a topic is re-processed whenever its source text changes. Content is generated from MedlinePlus and PubMed by a language model, and each list item is checked against the source before publishing. It is for education and information only, not medical advice.</p>
 
             <p><strong>Coverage:</strong> about 870 topics drawn from MedlinePlus health topics: conditions, symptoms, procedures and tests. Individual drugs are only partly covered (a couple of dozen entries, not a drug database), and Vaccine and Anatomy are small types. <code>GET /api/v1/topics/types</code> shows the live count for each. A name that isn't found returns a 404 with the closest search matches.</p>
 

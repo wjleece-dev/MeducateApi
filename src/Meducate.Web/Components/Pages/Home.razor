@@ -100,7 +100,7 @@
 
             <p>All topics are structured into predictable formats with categories grouped by body system (Respiratory System, Circulatory System, Mental & Behavioral, etc.).</p>
 
-            <p>Source data is reprocessed and summarised <strong>daily</strong> by automated background jobs.</p>
+            <p>Source data is checked <strong>daily</strong> by automated background jobs, and a topic is re-processed whenever its source text changes.</p>
 
             <hr>
 
@@ -125,7 +125,7 @@
                 <h3 class="fw-semibold">Primary source</h3>
                 <ul>
                     <li>
-                        <strong>MedlinePlus</strong>: a comprehensive health information service from the U.S. National Library of Medicine, covering over 2,000 health topics with daily updates.
+                        <strong>MedlinePlus</strong>: a comprehensive health information service from the U.S. National Library of Medicine, covering around 1,000 health topics, updated regularly.
                     </li>
                 </ul>
                 <p>A health topic will only appear in Meducate if it is listed on MedlinePlus. If a topic is removed from MedlinePlus, it is automatically removed from Meducate.</p>
@@ -154,12 +154,16 @@
 
             <ul class="mt-3">
                 <li>Every health topic is validated for completeness: summary, classification, observations, risk factors, and recommended actions</li>
-                <li>A rotating batch of topics is checked each night to verify that AI-generated summaries remain grounded in the original source material, flagging any content that diverges from its source</li>
+                <li>Before a topic is published, each list item is checked against the source text and removed if the source does not support it</li>
+                <li>A re-extraction that is worse than the stored topic (a missing list, for example) is discarded and the stored version stays live</li>
+                <li>A rotating batch of topics is re-checked each night against its original source text, flagging content that diverges from it</li>
                 <li>Category consistency is verified across the entire dataset on every run</li>
-                <li>Any failures automatically trigger alert emails for review before the next API response cycle</li>
+                <li>Failures trigger an alert email for review</li>
             </ul>
 
-            <p>This means the data you receive through the API has passed structured validation, not just ingestion.</p>
+            <p>These checks are automated and reduce errors; they do not make the content clinically reviewed. Topics are generated from MedlinePlus and PubMed by a language model, and every topic names its source organisations in <code>citations</code>.</p>
+
+            <p class="text-muted">Meducate is for education and information only. It is not medical advice and must not be used for diagnosis or treatment decisions.</p>
 
             <hr>
 
@@ -167,8 +171,8 @@
 
             <ul class="mt-3">
                 <li>New health topics are discovered and classified automatically as providers publish them</li>
-                <li>Source data is refreshed and summarised <strong>once per day</strong></li>
-                <li>Summaries are regenerated to reflect the most recent available information</li>
+                <li>Source data is checked for changes <strong>once per day</strong></li>
+                <li>A topic is regenerated when its source text changes, so summaries follow the most recent available information</li>
                 <li>Topics removed by all providers are automatically retired</li>
                 <li>API responses always serve the latest processed dataset</li>
             </ul>

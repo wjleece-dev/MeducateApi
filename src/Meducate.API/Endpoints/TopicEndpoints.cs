@@ -98,8 +98,10 @@ internal static class TopicEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .WithTags("Topics");
 
-        app.MapGet("/topics/{name}", [RequiresApiKey] async (string name, ITopicRepository repo, CancellationToken ct) =>
+        // Catch-all so names containing a slash ("HIV/AIDS") resolve whether the client sends "/" or "%2F".
+        app.MapGet("/topics/{**name}", [RequiresApiKey] async (string name, ITopicRepository repo, CancellationToken ct) =>
         {
+            name = name.Replace("%2F", "/", StringComparison.OrdinalIgnoreCase);
             if (string.IsNullOrWhiteSpace(name) || name.Length > ApiConstants.MaxQueryLength)
                 return Results.Problem(
                     detail: $"Topic name must be between 1 and {ApiConstants.MaxQueryLength} characters.",

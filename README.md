@@ -27,7 +27,10 @@ MeducateAPI automatically discovers and aggregates medical topics from authorita
 - **Rate limiting**: two-tier system: 60 req/min per key + configurable daily limits with 80% usage alerts
 - **Automated topic discovery**: daily Hangfire jobs fetch new topics from MedlinePlus at 2 AM UTC
 - **Automated topic refresh**: existing topics re-processed daily at 3 AM UTC for accuracy
+- **Source grounding**: before a topic is saved, each list item is checked against the source text (a model judgement plus a word-overlap check, which must both say "unsupported") and removed if the source does not back it. It is a safety net, not a guarantee
+- **No regressions on refresh**: a re-extraction that fails a quality check the stored topic passes, or empties a list the stored topic had, is discarded and the stored version stays live
 - **Nightly drift detection**: a rotating batch of live topics is re-checked against their original source text each night; low keyword overlap flags likely hallucination or staleness, and structural failures (missing fields, invalid categories) trigger an email alert
+- **Spend guard**: every LLM call is metered against a daily budget, so a bug or a retry loop cannot run up a bill
 - **Topic classification**: LLM-powered categorisation into 26 standardised medical categories
 - **ICD-11 coding**: diagnosable topics (Disease, Disorder, Syndrome, Symptom, Mental Health) are matched against the WHO ICD-11 API for a real, verifiable diagnostic code, not LLM-generated
 - **OpenAPI spec and Postman collection**: full OpenAPI 3 document at `/swagger/v1/swagger.json`, plus a ready-made Postman collection with tests
@@ -162,15 +165,14 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 {
   "id": "a1000000-0000-0000-0000-000000000002",
   "name": "Type 2 Diabetes",
-  "summary": "Type 2 diabetes is a chronic disease characterized by high blood glucose levels due to insulin resistance and inadequate insulin production. Common symptoms include increased thirst and urination, increased hunger, fatigue, blurred vision, numbness or tingling in the feet or hands, sores that do not heal, and unexplained weight loss, though many individuals may not experience noticeable symptoms. Treatment focuses on managing blood glucose through lifestyle changes like healthy eating and physical activity, along with medications, if necessary.",
+  "summary": "Type 2 diabetes is a chronic disease in which blood glucose levels are too high due to insufficient insulin production or ineffective use of insulin. It usually begins with insulin resistance, requiring more insulin for glucose to enter cells, and can develop slowly over time. Risk factors include being overweight or having obesity, not being physically active, genetics and family history, being over age 45, having prediabetes, a history of gestational diabetes, certain ethnic backgrounds, and having other health conditions such as high blood pressure. Symptoms may be absent or mild initially but can include increased thirst and urination, fatigue, blurred vision, and sores that do not heal. Treatment aims to manage blood glucose levels through a healthy lifestyle and, when necessary, medications.",
   "topicType": "Disease",
   "category": "Endocrine, Nutritional & Metabolic",
   "icd11Code": "5A11",
   "icd11Title": "Type 2 diabetes mellitus",
   "symptoms": [
-    "Increased thirst",
-    "Increased urination",
-    "Increased hunger",
+    "High blood glucose levels",
+    "Increased thirst and urination",
     "Fatigue",
     "Blurred vision"
   ],
@@ -181,23 +183,23 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
     "Age over 45"
   ],
   "treatments": [
-    "Healthy eating",
-    "Regular physical activity (e.g., 150 total minutes of activity per week)",
-    "Monitoring blood glucose levels",
-    "Medications (oral medications, insulin, and other injectable medicines if necessary)"
+    "Following a healthy eating plan",
+    "Getting regular physical activity",
+    "Regular blood glucose monitoring",
+    "Taking oral medications"
   ],
   "citations": [
     "National Institute of Diabetes and Digestive and Kidney Diseases"
   ],
   "tags": [
     "diabetes",
-    "insulin",
-    "blood sugar",
-    "glucose",
-    "obesity"
+    "blood glucose",
+    "insulin resistance",
+    "symptoms",
+    "risk factors"
   ],
-  "lastUpdated": "2026-11-03T15:35:26.826677Z",
-  "version": 11
+  "lastUpdated": "2026-11-04T13:48:02.914747Z",
+  "version": 12
 }
 ```
 
@@ -205,7 +207,9 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 
 ## Data sources and attribution
 
-Health information from MedlinePlus and PubMed, U.S. National Library of Medicine. ICD-11 codes and titles are © World Health Organization, used under the WHO ICD API terms of use. The topic text is generated from those sources by a language model and is not a copy of any one of them. Educational and informational use only.
+Health information from MedlinePlus and PubMed, U.S. National Library of Medicine. ICD-11 codes and titles are © World Health Organization, used under the WHO ICD API terms of use. The topic text is generated from those sources by a language model and is not a copy of any one of them, and it has not been clinically reviewed. **This is not medical advice**: use it for education and information only, never for diagnosis or treatment decisions, and go to the cited source for anything that matters.
+
+About 870 topics are served, which is MedlinePlus's health-topic list (conditions, symptoms, procedures, tests) rather than all of MedlinePlus; individual drugs are only partly covered. A few overview topics (for example Anatomy) have empty lists because their source has no symptoms, risk factors or treatments to extract.
 
 ## Design Decisions
 
@@ -214,7 +218,7 @@ Health information from MedlinePlus and PubMed, U.S. National Library of Medicin
 ## Roadmap
 
 **Data scope**
-- Expand to drugs, procedures, vaccines, and diagnostics
+- Deeper drug coverage (individual drugs are only partly covered today)
 - Cross-reference multiple sources per topic (MedlinePlus + PubMed + WHO)
 
 **API features**
