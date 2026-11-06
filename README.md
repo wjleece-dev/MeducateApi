@@ -207,7 +207,7 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 
 ## Data sources and attribution
 
-Health information from MedlinePlus and PubMed, U.S. National Library of Medicine. ICD-11 codes and titles are © World Health Organization, used under the WHO ICD API terms of use. The topic text is generated from those sources by a language model and is not a copy of any one of them, and it has not been clinically reviewed. **This is not medical advice**: use it for education and information only, never for diagnosis or treatment decisions, and go to the cited source for anything that matters.
+Health information from MedlinePlus and PubMed, U.S. National Library of Medicine. ICD-11 codes and titles are © World Health Organization, used under the WHO ICD API terms of use. The topic text is rewritten and restructured from those sources by a language model, not copied; some phrases still follow the source wording closely (see each topic's `citations`). It has not been clinically reviewed. **This is not medical advice**: use it for education and information only, never for diagnosis or treatment decisions, and go to the cited source for anything that matters.
 
 About 870 topics are served, which is MedlinePlus's health-topic list (conditions, symptoms, procedures, tests) rather than all of MedlinePlus; individual drugs are only partly covered. A few overview topics (for example Anatomy) have empty lists because their source has no symptoms, risk factors or treatments to extract.
 
