@@ -255,6 +255,18 @@ internal sealed class TopicRefreshService(
 
             try
             {
+                // A weaker re-extraction must never replace what is already served; keep the stored topic and retry
+                if (TopicHelpers.IsRegression(topic, structured))
+                {
+                    topic.ReprocessAttempts++;
+                    if (topic.ReprocessAttempts >= MaxReprocessAttempts)
+                        topic.NeedsLlmReprocessing = false;
+                    _logger.LogWarning("Kept the stored version of '{Name}': the new extraction was worse (attempt {Attempts}/{Max})",
+                        topic.Name, topic.ReprocessAttempts, MaxReprocessAttempts);
+                    console?.WriteLine($"  [{topic.Name}] New extraction was worse than the stored one - kept the stored version.");
+                    continue;
+                }
+
                 // Only allow the LLM to fix casing, not rename the topic entirely
                 if (string.Equals(topic.Name, structured.Name, StringComparison.OrdinalIgnoreCase))
                 {

@@ -90,6 +90,17 @@ internal static class TopicHelpers
         @"^(take|follow|avoid|wear|apply|applying|keep|do not|don't|learn|learning|arrang|rest\b|return|use of|wash|stop|talk to|call|ask|eat|drink)|\bfollow[- ]?up\b|\brecovery\b|\bpain (medic|manage|relief)\b|\bduring healing\b",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
+    // A re-extraction that would leave a stored topic worse off: it fails the quality check the stored one passes,
+    // or it empties a list the stored one had. Such a result is discarded rather than served.
+    internal static bool IsRegression(HealthTopic stored, HealthTopic fresh) =>
+        (CheckTopicQuality(fresh) is not null && CheckTopicQuality(stored) is null)
+        || Emptied(stored.Observations, fresh.Observations)
+        || Emptied(stored.Factors, fresh.Factors)
+        || Emptied(stored.Actions, fresh.Actions);
+
+    private static bool Emptied(List<string>? stored, List<string>? fresh) =>
+        stored is { Count: > 0 } && fresh is not { Count: > 0 };
+
     // Quality issues the verifier can repair (content problems), as opposed to an empty or missing extraction.
     internal static bool IsVerifiable(string? qualityIssue) =>
         qualityIssue is null || qualityIssue.StartsWith("actions contain aftercare", StringComparison.Ordinal)

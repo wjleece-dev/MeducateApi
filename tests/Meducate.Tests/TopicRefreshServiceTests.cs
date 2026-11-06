@@ -174,6 +174,43 @@ public class TopicRefreshServiceTests
     }
 
     [Fact]
+    public async Task RefreshAllAsync_Reprocess_KeepsStoredTopic_WhenNewExtractionIsWorse()
+    {
+        var stored = GoodQualityTopic("Topic A");
+        stored.RawSource = new string('x', 200);
+        stored.NeedsLlmReprocessing = true;
+        stored.Version = 5;
+        var worse = GoodQualityTopic("Topic A");
+        worse.Actions = [];
+        var llm = new FakeLlmProcessor { ParseResult = worse };
+        var service = BuildService([], new FakeQueryRepo { AllTopics = [stored] }, new FakeWriteRepo(), llm);
+
+        await service.RefreshAllAsync();
+
+        Assert.Equal(["Rest"], stored.Actions);
+        Assert.Equal(5, stored.Version);
+        Assert.Equal(1, stored.ReprocessAttempts);
+        Assert.True(stored.NeedsLlmReprocessing);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_Reprocess_StopsRetrying_AfterMaxAttemptsOfWorseResults()
+    {
+        var stored = GoodQualityTopic("Topic A");
+        stored.RawSource = new string('x', 200);
+        stored.NeedsLlmReprocessing = true;
+        stored.ReprocessAttempts = 2;
+        var worse = GoodQualityTopic("Topic A");
+        worse.Observations = [];
+        var service = BuildService([], new FakeQueryRepo { AllTopics = [stored] }, new FakeWriteRepo(), new FakeLlmProcessor { ParseResult = worse });
+
+        await service.RefreshAllAsync();
+
+        Assert.False(stored.NeedsLlmReprocessing);
+        Assert.Equal(["Fatigue"], stored.Observations);
+    }
+
+    [Fact]
     public async Task RefreshAllAsync_Phase3_AssignsCategory_ToUncategorizedTopic()
     {
         var topic = new HealthTopic { Name = "Topic A", TopicType = "Disease", Category = null };

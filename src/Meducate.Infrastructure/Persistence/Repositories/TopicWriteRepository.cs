@@ -91,6 +91,31 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
                     _ => null,
                 };
 
+                // An empty Item with ReplaceWith set adds ReplaceWith (used to restore items a bad re-extraction lost).
+                if (string.IsNullOrEmpty(edit.Item) && !string.IsNullOrWhiteSpace(edit.ReplaceWith))
+                {
+                    var target = edit.Field.ToLowerInvariant();
+                    if (target is not ("observations" or "factors" or "actions"))
+                    {
+                        notFound++;
+                        continue;
+                    }
+
+                    list ??= target switch
+                    {
+                        "observations" => topic.Observations = [],
+                        "factors" => topic.Factors = [],
+                        _ => topic.Actions = [],
+                    };
+                    if (!list.Any(i => string.Equals(i, edit.ReplaceWith, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        list.Add(edit.ReplaceWith);
+                        applied++;
+                        changed = true;
+                    }
+                    continue;
+                }
+
                 var index = list?.FindIndex(i => string.Equals(i, edit.Item, StringComparison.OrdinalIgnoreCase)) ?? -1;
                 if (list is null || index < 0)
                 {
