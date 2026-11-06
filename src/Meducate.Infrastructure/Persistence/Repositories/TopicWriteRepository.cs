@@ -83,6 +83,24 @@ internal sealed class TopicWriteRepository(MeducateDbContext db) : ITopicWriteRe
             var changed = false;
             foreach (var edit in group)
             {
+                // Field "summary": Item must be the current summary text; ReplaceWith becomes the new summary.
+                if (edit.Field.Equals("summary", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrWhiteSpace(edit.ReplaceWith)
+                        && string.Equals(topic.Summary?.Trim(), edit.Item?.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        topic.Summary = edit.ReplaceWith;
+                        applied++;
+                        changed = true;
+                    }
+                    else
+                    {
+                        notFound++;
+                    }
+
+                    continue;
+                }
+
                 var list = edit.Field.ToLowerInvariant() switch
                 {
                     "observations" => topic.Observations,
