@@ -1,0 +1,304 @@
+@page "/docs"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<SeoHead Title="API Documentation | Meducate API"
+         Description="Full API reference and integration guide for Meducate API. Start querying medical data in minutes."
+         Canonical="https://meducateapi.com/docs">
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.31.2/swagger-ui.css" integrity="sha384-KX9Rx9vM1AmUNAn07bPAiZhFD4C8jdNgG6f5MRNvR+EfAxs2PmMFtUUazui7ryZQ" crossorigin="anonymous" />
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "WebAPI",
+        "name": "Meducate API",
+        "url": "https://api.meducateapi.com",
+        "documentation": "https://meducateapi.com/docs",
+        "description": "REST API providing structured, categorised medical data refreshed daily from MedlinePlus and PubMed.",
+        "provider": {
+            "@@type": "Organization",
+            "name": "Meducate API",
+            "url": "https://meducateapi.com"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://meducateapi.com/"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "API Documentation",
+                "item": "https://meducateapi.com/docs"
+            }
+        ]
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <h1 class="fw-bold mb-3">Documentation</h1>
+
+            <p class="lead">Meducate API provides structured, up-to-date medical information through a simple REST API.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">What the API provides</h2>
+
+            <p>Meducate aggregates medical reference data from external providers and processes it using large language models (LLMs). This data is normalised and structured into predictable formats with <strong>body-system and content-type categories</strong>.</p>
+
+            <p>All health topics are classified by type (Disease, Drug, Procedure, etc.) and assigned to categories grouped by body system, such as Respiratory System, Circulatory System, and Mental & Behavioral.</p>
+
+            <p>Source data is checked <strong>daily</strong> by automated background jobs, and a topic is re-processed whenever its source text changes. Content is generated from MedlinePlus and PubMed by a language model, and each list item is checked against the source before publishing. It is for education and information only, not medical advice.</p>
+
+            <p><strong>Coverage:</strong> about 870 topics drawn from MedlinePlus health topics: conditions, symptoms, procedures and tests. Individual drugs are only partly covered (a couple of dozen entries, not a drug database), and Vaccine and Anatomy are small types. <code>GET /api/v1/topics/types</code> shows the live count for each. A name that isn't found returns a 404 with the closest search matches.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Authentication</h2>
+
+            <p>All API requests must include your organisation's API key using the <code>X-Api-Key</code> request header.</p>
+
+            <pre class="bg-light p-3 rounded mt-3">X-Api-Key: YOUR_API_KEY</pre>
+            <p class="text-muted mt-2">Topic requests also work from a browser (CORS is open on the topic routes), which suits the demo key. Keep a private API key on your server, not in client-side or public code.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Quick start: query health topics</h2>
+
+            <p>Search for health topics using your API key. Replace <code>YOUR_API_KEY</code> with your key or use the <a href="#demo-key" data-enhance-nav="false">demo key</a> below.</p>
+
+            <ul class="nav nav-pills mb-3 mt-3">
+                <li class="nav-item">
+                    <button class="nav-link @(_activeTab == "curl" ? "active" : "")" @onclick='() => _activeTab = "curl"'>curl</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(_activeTab == "js" ? "active" : "")" @onclick='() => _activeTab = "js"'>JavaScript</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(_activeTab == "python" ? "active" : "")" @onclick='() => _activeTab = "python"'>Python</button>
+                </li>
+            </ul>
+
+            @if (_activeTab == "curl")
+            {
+                <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://api.meducateapi.com/api/v1/topics/search?query=diabetes"</code></pre>
+            }
+            else if (_activeTab == "js")
+            {
+                <pre class="bg-light p-3 rounded"><code>const response = await fetch(
+  "https://api.meducateapi.com/api/v1/topics/search?query=diabetes",
+  { headers: { "X-Api-Key": "YOUR_API_KEY" } }
+);
+const data = await response.json();
+console.log(data);</code></pre>
+            }
+            else if (_activeTab == "python")
+            {
+                <pre class="bg-light p-3 rounded"><code>import requests
+
+response = requests.get(
+    "https://api.meducateapi.com/api/v1/topics/search?query=diabetes",
+    headers={"X-Api-Key": "YOUR_API_KEY"}
+)
+print(response.json())</code></pre>
+            }
+
+            <hr>
+
+            <h2 class="fw-semibold">Rate limits and daily usage</h2>
+
+            <ul class="mt-3">
+                <li><strong>1,000 requests per day</strong> per API key</li>
+                <li>Usage resets every 24 hours (midnight UTC)</li>
+                <li><strong>60 requests per minute</strong> per API key (burst limit, resets continuously)</li>
+                <li>Requests exceeding either limit will receive a 429 response</li>
+                <li>You can create up to 5 API keys per organisation</li>
+            </ul>
+
+            <hr>
+
+            <h2 class="fw-semibold">Health check</h2>
+
+            <p>A public health endpoint is available for monitoring at <code>GET /health</code>. No authentication required.</p>
+
+            <pre class="bg-light p-3 rounded"><code>curl https://api.meducateapi.com/health</code></pre>
+
+            <hr>
+
+            <h2 class="fw-semibold">Postman collection</h2>
+
+            <p>A ready-made Postman collection covers every endpoint with example parameters and tests, so you can explore the API or smoke-test it in one click.</p>
+
+            <ul>
+                <li>In Postman choose <strong>Import</strong> and paste <code>https://meducateapi.com/meducate-api.postman_collection.json</code>, or <a href="/meducate-api.postman_collection.json" download>download the file</a>.</li>
+                <li>Set the <code>apiKey</code> collection variable to your key. It ships with the public demo key, which is shared by everyone: 10,000 requests a day in total, and 300 a day (60 a minute) from any one address.</li>
+            </ul>
+
+            <hr>
+
+            <h2 class="fw-semibold">Try it out</h2>
+            <p>Use the interactive explorer below to browse endpoints and test requests. Enter your <code>X-Api-Key</code> via the <strong>Authorize</strong> button to authenticate.</p>
+
+            <div id="demo-key" class="card border-primary-subtle mt-3">
+                <div class="card-body">
+                    <h3 class="fw-semibold mb-2">Public demo key</h3>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace" value="@DemoKey" readonly />
+                        <button class="btn btn-outline-primary" @onclick="CopyDemoKey">@_copyLabel</button>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Shared demo key: 300 requests/day per address (10,000/day across all users). <a href="/register">Create a free account</a> for your own key (1,000/day) that other people's traffic cannot use up.</small>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="container mt-3 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-9">
+            <div id="swagger-ui"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Hide the default Swagger top bar and info section */
+    #swagger-ui .swagger-ui .information-container,
+    #swagger-ui .swagger-ui .scheme-container { display: none; }
+
+    /* Clean up the wrapper */
+    #swagger-ui .swagger-ui .swagger-container { padding: 0; }
+    #swagger-ui .swagger-ui .wrapper { padding: 0; max-width: 100%; }
+
+    /* Rounded cards for each operation */
+    #swagger-ui .swagger-ui .opblock {
+        border-radius: 0.5rem;
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        box-shadow: 0 1px 3px rgba(0,0,0,.06);
+        margin-bottom: 0.75rem;
+    }
+
+    #swagger-ui .swagger-ui .opblock .opblock-summary {
+        border-radius: 0.5rem;
+        padding: 0.6rem 1rem;
+    }
+
+    /* Soften the GET method colours */
+    #swagger-ui .swagger-ui .opblock.opblock-get {
+        background: rgba(var(--bs-success-rgb, 25,135,84), .05);
+        border-color: rgba(var(--bs-success-rgb, 25,135,84), .25);
+    }
+    #swagger-ui .swagger-ui .opblock.opblock-get .opblock-summary-method {
+        background: var(--bs-success, #198754);
+        border-radius: 0.35rem;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+    }
+
+    /* Section header */
+    #swagger-ui .swagger-ui .opblock-tag {
+        border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+        font-size: 1.15rem;
+        padding: 0.75rem 0;
+    }
+
+    /* Response section */
+    #swagger-ui .swagger-ui .responses-inner { padding: 0.75rem; }
+    #swagger-ui .swagger-ui table tbody tr td { padding: 0.5rem 0.75rem; }
+
+    /* Hide empty Links section */
+    #swagger-ui .swagger-ui .response-col_links { display: none; }
+
+    /* Authorize button */
+    #swagger-ui .swagger-ui .btn.authorize {
+        border-radius: 0.375rem;
+        font-size: 0.85rem;
+    }
+
+    /* Dark mode support */
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock-body,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock .opblock-section-header,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock-description-wrapper,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .response-col_description__inner,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .markdown p,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .parameter__name,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .parameter__type,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui table thead tr th,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui table tbody tr td,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .response-col_status,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock-tag,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock-summary-description,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock-summary-path {
+        color: var(--bs-body-color, #dee2e6);
+    }
+
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock .opblock-section-header {
+        background: rgba(255,255,255,.04);
+    }
+
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui .opblock.opblock-get {
+        background: rgba(25,135,84,.1);
+        border-color: rgba(25,135,84,.3);
+    }
+
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui input[type=text],
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui textarea,
+    [data-bs-theme="dark"] #swagger-ui .swagger-ui select {
+        background: var(--bs-body-bg, #212529);
+        color: var(--bs-body-color, #dee2e6);
+        border-color: var(--bs-border-color, #495057);
+    }
+</style>
+
+@code {
+    private const string DemoKey = "d3m0000000000000000000000000key1.MEDUCATE_PUBLIC_DEMO_2026";
+    private IJSObjectReference? _module;
+    private string _copyLabel = "Copy";
+    private string _activeTab = "curl";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import",
+                "./Components/Pages/Docs.razor.js");
+            await _module.InvokeVoidAsync("init");
+        }
+    }
+
+    private async Task CopyDemoKey()
+    {
+        if (_module is not null)
+        {
+            var ok = await _module.InvokeAsync<bool>("copyToClipboard", DemoKey);
+            _copyLabel = ok ? "Copied" : "Failed";
+            StateHasChanged();
+            await Task.Delay(2000);
+            _copyLabel = "Copy";
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.DisposeAsync();
+        }
+    }
+}

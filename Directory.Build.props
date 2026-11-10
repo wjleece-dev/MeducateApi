@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Security pin, not a direct dependency. The code uses System.Text.Json throughout;
+         Hangfire pulls Newtonsoft transitively and its floor (11.x) is vulnerable
+         (CVE-2024-21907). This forces the patched 13.0.x everywhere. Solution-wide so a
+         new project can't silently inherit the vulnerable version. Safe to remove only
+         once Hangfire no longer depends on Newtonsoft. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" PrivateAssets="none" />
+  </ItemGroup>
+</Project>

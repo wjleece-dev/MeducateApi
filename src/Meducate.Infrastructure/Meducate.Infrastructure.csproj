@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+		<InternalsVisibleTo Include="Meducate.API" />
+		<InternalsVisibleTo Include="Meducate.Tests" />
+		<InternalsVisibleTo Include="Meducate.IntegrationTests" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Meducate.Domain\Meducate.Domain.csproj" />
+		<ProjectReference Include="..\Meducate.Application\Meducate.Application.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Hangfire" Version="1.8.25" />
+		<PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.14" />
+		<PackageReference Include="Microsoft.SemanticKernel" Version="1.81.0" />
+		<PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.81.0" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+		<PackageReference Include="Resend" Version="0.24.0" />
+	</ItemGroup>
+</Project>

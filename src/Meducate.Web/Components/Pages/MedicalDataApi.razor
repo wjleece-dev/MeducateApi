@@ -1,0 +1,97 @@
+@page "/medical-data-api"
+
+<SeoHead Title="Medical Data API | Structured Health Data | Meducate API"
+         Description="Access structured medical data via REST API. Categorised health topics sourced from MedlinePlus and PubMed, refreshed daily."
+         Canonical="https://meducateapi.com/medical-data-api">
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://meducateapi.com/"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "Medical Data API",
+                "item": "https://meducateapi.com/medical-data-api"
+            }
+        ]
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <BreadcrumbNav PageName="Medical Data API" />
+
+            <h1 class="fw-bold mb-3">Medical Data API</h1>
+            <p class="lead">Structured, categorised medical data for developers building health applications, EHR integrations, insurance tools, and clinical software.</p>
+
+            <a href="/register" class="btn btn-primary mt-2 mb-4">Get a free API key</a>
+
+            <hr>
+
+            <h2 class="fw-semibold">What is a medical data API?</h2>
+            <p>A medical data API is an interface that allows applications to programmatically retrieve structured medical information (conditions, symptoms, treatments, drugs, procedures) without building and maintaining their own medical database.</p>
+            <p>The challenge in healthcare software is consistency. Medical terminology is complex, sources disagree, and data arrives in inconsistent formats. A well-designed medical data API handles that complexity: normalising source data, applying a consistent category structure, and exposing clean JSON endpoints your application can consume directly.</p>
+            <p>Meducate API aggregates from authoritative medical sources, processes each topic through automated LLM-based structuring, assigns a body-system or content-type category, and exposes the result through a simple REST interface.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Who uses a medical data API?</h2>
+
+            <h3 class="fw-semibold mt-4">EHR integrations</h3>
+            <p>Electronic Health Record systems often require condition descriptions, educational content, and standardised classifications linked to patient records. Rather than embedding static medical content in your EHR or building a custom content management layer, a medical data API provides a live, maintained data source you can query at the point of care.</p>
+            <p>Meducate's body-system categories give EHR content a consistent organising structure, making it straightforward to group and surface educational material alongside patient records.</p>
+
+            <h3 class="fw-semibold mt-4">Health and wellness apps</h3>
+            <p>Consumer health apps (symptom trackers, medication reminders, condition management tools) need accurate, up-to-date medical information presented in user-friendly language. A medical data API provides that content as structured data your app can format and present to its audience.</p>
+
+            <h3 class="fw-semibold mt-4">Insurance technology</h3>
+            <p>Insurtech platforms often need to correlate policy terms, claims, and risk models with medical conditions. Consistently categorised medical data provides a normalised terminology layer to help with condition identification, eligibility checking, and claims categorisation.</p>
+
+            <h3 class="fw-semibold mt-4">Clinical decision support</h3>
+            <p>Clinical decision support tools surface relevant information to clinicians at the point of care. A medical data API provides the underlying condition and treatment reference data that powers differential diagnosis assistance, drug interaction lookups, and condition information panels.</p>
+
+            <h3 class="fw-semibold mt-4">Telehealth platforms</h3>
+            <p>Telehealth applications need to present condition information to patients preparing for or following up from virtual consultations. Structured medical data gives patient-facing interfaces accurate, consistently formatted health content without a manual editorial process.</p>
+
+            <h3 class="fw-semibold mt-4">Medical education and training</h3>
+            <p>Medical education platforms, student apps, and clinical training tools need reliable reference data across thousands of conditions and procedures. A medical data API provides that breadth without requiring a dedicated medical content team.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">How Meducate compares</h2>
+            <p>Most medical data sources are either too raw (direct feeds from MedlinePlus or PubMed that need a lot of processing), too expensive (proprietary clinical databases), or too broad (generic content APIs with no medical classification). Meducate sits in between, and it's built for developers who want:</p>
+            <ul>
+                <li>The same JSON schema on every topic</li>
+                <li>Topics grouped by body system and content type</li>
+                <li>Data refreshed daily by an automated pipeline</li>
+                <li>Authentication that's just an API key in a header</li>
+                <li>A free tier of 1,000 requests a day, no card required</li>
+            </ul>
+
+            <hr>
+
+            <h2 class="fw-semibold">Data sources and reliability</h2>
+            <p>Meducate draws from <strong>MedlinePlus</strong> (U.S. National Library of Medicine, around 1,000 health topics) and <strong>PubMed</strong> (peer-reviewed biomedical literature). Both are widely used in clinical and research settings.</p>
+            <p>The pipeline checks the sources every day and re-processes any topic whose source changed. When a topic is removed from the source, Meducate drops it too, so stale entries don't linger in the API.</p>
+
+            <hr>
+
+            <p class="mt-4">
+                <a href="/register" class="btn btn-primary me-2">Get a free API key</a>
+                <a href="/docs" class="btn btn-outline-secondary">View documentation</a>
+            </p>
+            <p class="text-muted mt-3">Also see: <a href="/health-topics-api">Health Topics API</a> · <a href="/use-cases">Use Cases</a></p>
+
+        </div>
+    </div>
+</div>

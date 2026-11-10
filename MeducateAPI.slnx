@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Meducate.Domain/Meducate.Domain.csproj" />
+    <Project Path="src/Meducate.Application/Meducate.Application.csproj" />
+    <Project Path="src/Meducate.Infrastructure/Meducate.Infrastructure.csproj" />
+    <Project Path="src/Meducate.API/Meducate.API.csproj" />
+    <Project Path="src/Meducate.Web/Meducate.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Meducate.Tests/Meducate.Tests.csproj" />
+    <Project Path="tests/Meducate.IntegrationTests/Meducate.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,43 @@
+@* Terms of service body. Shared by the /terms page and the registration modal.
+   HeadingSize lets the modal render smaller headings (pass "h5"); the page uses
+   the default h2 size. *@
+
+<p class="text-muted">Last updated: 6 November 2026</p>
+<hr>
+
+<h2 class="fw-semibold @HeadingSize">Acceptable use</h2>
+<p>You agree to use Meducate API for lawful purposes only. You must not:</p>
+<ul>
+    <li>Attempt to circumvent rate limits or authentication.</li>
+    <li>Share, publish, or expose your API keys.</li>
+    <li>Use the service to build products that provide medical diagnoses or treatment recommendations.</li>
+    <li>Resell API access without prior written consent.</li>
+</ul>
+<p><strong>Commercial use is allowed.</strong> You may use Meducate API, including the free tier, in commercial products and services, within the rate limits and the rules above. Reselling access to the API itself still needs our written consent. ICD-11 codes and titles belong to the World Health Organization and stay subject to its terms of use.</p>
+
+<h2 class="fw-semibold mt-4 @HeadingSize">Rate limits</h2>
+<p>Each API key has a daily request limit. Exceeding this limit will result in <code>429 Too Many Requests</code> responses until the limit resets at midnight UTC. Limits may be adjusted at our discretion.</p>
+
+<h2 class="fw-semibold mt-4 @HeadingSize">API key security</h2>
+<p>You are responsible for keeping your API keys secure. If you believe a key has been compromised, disable it immediately from your dashboard. We are not liable for unauthorised usage resulting from exposed keys.</p>
+
+<h2 class="fw-semibold mt-4 @HeadingSize">Medical disclaimer</h2>
+<p><strong>Meducate API is for educational and informational purposes only.</strong> The data provided does not constitute medical advice, diagnosis, or treatment. Always consult a qualified healthcare professional for medical decisions. We make no warranties about the accuracy, completeness, or timeliness of the medical information provided.</p>
+
+<h2 class="fw-semibold mt-4 @HeadingSize">Liability limitations</h2>
+<p>Meducate API is provided "as is" without warranties of any kind, express or implied. To the fullest extent permitted by law, we shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service.</p>
+
+<h2 class="fw-semibold mt-4 @HeadingSize">Account termination</h2>
+<p>We reserve the right to suspend or terminate accounts that violate these terms or abuse the service. You may delete your account at any time from the dashboard, which permanently removes all your data.</p>
+
+<h2 class="fw-semibold mt-4 @HeadingSize">Changes to terms</h2>
+<p>We may update these terms from time to time. Continued use of the service after changes constitutes acceptance of the updated terms.</p>
+
+<h2 class="fw-semibold mt-4 @HeadingSize">Contact</h2>
+<p>For questions about these terms, email <a href="mailto:@_contactEmail">@_contactEmail</a>.</p>
+
+@code {
+    [Parameter] public string HeadingSize { get; set; } = "";
+
+    private static readonly string _contactEmail = string.Concat("will", "@", "meducateapi.com");
+}

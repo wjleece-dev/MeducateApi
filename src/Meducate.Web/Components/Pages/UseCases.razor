@@ -1,0 +1,111 @@
+@page "/use-cases"
+
+<SeoHead Title="Use Cases | Meducate API for Health Apps & EHR Systems"
+         Description="See how developers use Meducate API for EHR integration, health apps, clinical decision support, and medical education tools."
+         Canonical="https://meducateapi.com/use-cases">
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://meducateapi.com/"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "Use Cases",
+                "item": "https://meducateapi.com/use-cases"
+            }
+        ]
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <BreadcrumbNav PageName="Use Cases" />
+
+            <h1 class="fw-bold mb-3">Use Cases</h1>
+            <p class="lead">How developers use the Meducate API to add structured medical data to educational and informational health applications.</p>
+
+            <div class="alert alert-warning mt-3" role="alert">
+                <strong>Informational use only.</strong> Meducate API is designed for educational and informational purposes. It must not be used to provide medical diagnoses, treatment recommendations, or clinical decision support. Always direct users to consult a qualified healthcare professional for medical advice. See our <a href="/terms" class="alert-link">terms of service</a>.
+            </div>
+
+            <hr>
+
+            <h2 class="fw-semibold">Health education apps</h2>
+            <p>Consumer health education apps help people understand medical conditions, symptoms, and treatments in plain language. The Meducate API is a good fit here: the data is sourced from MedlinePlus, the U.S. National Library of Medicine's public health information service, and is written for general audiences.</p>
+            <p>With the Meducate API, a health education app can:</p>
+            <ul>
+                <li>Provide searchable, well-structured explanations of 800+ health topics</li>
+                <li>Organise content by body system using topic categories, so users can browse by topic area</li>
+                <li>Surface related conditions and topics based on shared category</li>
+                <li>Keep content current without a manual editorial process (the API refreshes daily)</li>
+            </ul>
+            <p>The key distinction: these apps inform and educate users about health topics in general terms. They do not assess individual symptoms or suggest diagnoses for specific users.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Patient information portals</h2>
+            <p>Patient portals give people access to their health records and appointment history. Many portals display diagnosis codes or condition names without any accompanying explanation, leaving patients to search elsewhere for basic information about what those terms mean.</p>
+            <p>The Meducate API can enrich a patient portal with plain-language condition descriptions alongside diagnosis records, purely as supplementary educational context. For example, if a patient's record shows "Type 2 Diabetes", the portal can display a general educational summary of what that condition is (sourced from MedlinePlus) without making any assertions about the individual patient's situation.</p>
+            <p>This is an informational layer only. The API data describes conditions in general terms and is not tailored to any individual's circumstances. Any clinical interpretation remains the responsibility of the treating clinician.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Telehealth platforms</h2>
+            <p>Telehealth platforms connect patients with clinicians remotely. Educational content about health topics can support the patient experience without crossing into clinical territory. For example, a pre-consultation information page explaining what a condition generally involves, or a post-consultation summary linking to general educational resources about a topic discussed during the appointment.</p>
+            <p>The Meducate API is appropriate for this kind of static, general educational content. It is not appropriate for building features that assess a patient's individual symptoms, suggest likely diagnoses, or recommend specific treatments. Those are clinical functions that require qualified medical oversight.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Medical training and reference apps</h2>
+            <p>Medical students, nursing staff, and allied health professionals use reference apps throughout their training and careers. A structured dataset of 800+ conditions, drugs, procedures, and symptoms, organised by body system, provides useful raw material for:</p>
+            <ul>
+                <li>Study and revision tools covering medical classification</li>
+                <li>Condition reference browsers for students learning medical terminology</li>
+                <li>Flashcard and quiz apps built around medical topic categories</li>
+                <li>Training materials that require current, consistently structured medical content</li>
+            </ul>
+            <p>These are educational tools. They support learning about medicine. They are not substitutes for clinical training, professional judgement, or supervised practice.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Research and analytics platforms</h2>
+            <p>Researchers and analysts sometimes need a structured, queryable dataset of medical topics for non-clinical purposes, such as understanding the breadth of topic categories, analysing health topic coverage across sources, or building visualisations of condition classification. Meducate's clean, consistently structured dataset is well-suited for this kind of exploratory and analytical work.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">General information websites</h2>
+            <p>Many websites include general health information sections (wellness blogs, fitness platforms, public health resources). The Meducate API provides a reliable, maintained source of structured health topic content that can be integrated into these sites without building a dedicated content management workflow.</p>
+            <p>As with all Meducate integrations, content should be clearly presented as general educational information, not personalised medical advice.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">What Meducate Is Not For</h2>
+            <ul>
+                <li><strong>Not for clinical diagnosis:</strong> the API must not be used to assess a user's symptoms and suggest what condition they have</li>
+                <li><strong>Not for treatment recommendations:</strong> the API must not be used to recommend specific treatments, medications, or procedures for an individual</li>
+                <li><strong>Not for clinical decision support:</strong> the API is not designed to support clinicians making patient care decisions</li>
+                <li><strong>Not a replacement for professional advice:</strong> applications built on Meducate must make clear that users should consult a qualified healthcare professional for personal medical questions</li>
+            </ul>
+            <p>These constraints exist because Meducate data is synthesised from educational sources and is not validated for clinical use. Building clinical tools on top of it would be unsafe and is prohibited by our <a href="/terms">terms of service</a>.</p>
+
+            <hr>
+
+            <p class="mt-4">
+                <a href="/register" class="btn btn-primary me-2">Get your free API key. 1,000 requests/day.</a>
+                <a href="/docs" class="btn btn-outline-secondary">View documentation</a>
+            </p>
+            <p class="text-muted mt-3">Also see: <a href="/medical-data-api">Medical Data API</a> · <a href="/health-topics-api">Health Topics API</a></p>
+
+        </div>
+    </div>
+</div>

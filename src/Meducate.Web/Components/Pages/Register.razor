@@ -1,0 +1,305 @@
+
+@page "/register"
+@rendermode InteractiveServer
+@inject Meducate.Web.Services.ApiService Api
+@inject NavigationManager Nav
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JS
+
+@using Meducate.Web.Components.Shared;
+@using Meducate.Web.Models;
+
+<SeoHead Title="Sign Up Free | Meducate API"
+         Description="Create a free Meducate API account to start accessing structured medical data immediately."
+         Canonical="https://meducateapi.com/register" />
+
+<div class="container min-vh-100 d-flex justify-content-center pt-5">
+    <div class="row w-100 justify-content-center">
+        <div class="col-md-6 col-lg-5">
+
+            <h1 class="h3 fw-bold mb-3 text-center">@(_isCreateMode ? "Create account" : "Sign in")</h1>
+
+            @if (_isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading…</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+            <div class="card">
+                <div class="card-body">
+
+                    @if (_form is not null && !IsCompleted)
+                    {
+                        <EditForm FormName="UserRegistrationForm" Model="_form" OnValidSubmit="Submit" class="was-validated">
+                            <DataAnnotationsValidator />
+                            <label for="usernameInput" class="form-label h5">Email address</label>
+                            <InputText id="usernameInput" @bind-Value="_form.Username" type="email" class="form-control" required />
+
+                            @* Honeypot field — hidden from real users, bots fill it *@
+                            <div style="position: absolute; left: -9999px;" aria-hidden="true">
+                                <label for="websiteInput">Website</label>
+                                <InputText id="websiteInput" @bind-Value="_form.Website" tabindex="-1" autocomplete="off" />
+                            </div>
+                            <input type="hidden" name="_form.Timestamp" value="@_form.Timestamp" />
+
+                            <p class="text-muted mt-2 small">We'll send you a link to @(_isCreateMode ? "get started" : "sign in").</p>
+
+                            @if (_isCreateMode)
+                            {
+                                <div class="form-check mt-3">
+                                    <InputCheckbox id="termsCheck" @bind-Value="_form.AcceptedTerms" class="form-check-input" disabled="@(!_hasViewedPrivacy || !_hasViewedTerms)" required />
+                                    <label class="form-check-label small" for="termsCheck">
+                                        I agree to the
+                                        <button type="button" class="btn btn-link p-0 align-baseline small" @onclick="OpenPrivacyModal">Privacy Policy</button>
+                                        and
+                                        <button type="button" class="btn btn-link p-0 align-baseline small" @onclick="OpenTermsModal">Terms of Service</button>.
+                                    </label>
+                                    <ValidationMessage For="() => _form.AcceptedTerms" class="d-block small" />
+                                </div>
+                            }
+
+                            <hr>
+
+                            <div class="d-flex justify-content-end">
+                                <SubmitButton Classes="btn-primary" IsLoading="_isSubmitting">Continue</SubmitButton>
+                            </div>
+                        </EditForm>
+                    }
+
+                    @if (IsCompleted)
+                    {
+                        <div class="text-center py-3">
+                            <h5 class="fw-semibold mb-2">Check your email</h5>
+                            <p class="text-muted mb-3">
+                                @(_isCreateMode ? "We've sent a verification link to" : "If an account exists for") <strong>@_form?.Username</strong>@(_isCreateMode ? "." : ", we've sent a sign-in link.")<br />
+                                Click the link in the email to continue.
+                            </p>
+                            <div class="alert alert-success" role="alert">
+                                You can safely close this page.
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Alert) && !IsCompleted)
+                    {
+                        <div class="alert @AlertCss mt-3" role="alert">
+                            @Alert
+                        </div>
+                    }
+
+                </div>
+            </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@* Privacy Policy Modal *@
+@if (_showPrivacyModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Privacy Policy</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePrivacyModal"></button>
+                </div>
+                <div class="modal-body" id="privacyModalBody" style="overflow-y: auto; max-height: 60vh;">
+                    <PrivacyPolicyContent HeadingSize="h5" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="privacyConfirmBtn" class="btn btn-primary" disabled @onclick="ConfirmPrivacy">I've read this</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Terms of Service Modal *@
+@if (_showTermsModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Terms of Service</h5>
+                    <button type="button" class="btn-close" @onclick="CloseTermsModal"></button>
+                </div>
+                <div class="modal-body" id="termsModalBody" style="overflow-y: auto; max-height: 60vh;">
+                    <TermsOfServiceContent HeadingSize="h5" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="termsConfirmBtn" class="btn btn-primary" disabled @onclick="ConfirmTerms">I've read this</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _isCreateMode;
+
+    private bool _hasViewedPrivacy;
+    private bool _hasViewedTerms;
+    private bool _showPrivacyModal;
+    private bool _showTermsModal;
+
+    private IJSObjectReference? _jsModule;
+
+    [SupplyParameterFromQuery(Name = "mode")]
+    private string? Mode { get; set; }
+
+    private sealed record UserRegistrationRequestForm : System.ComponentModel.DataAnnotations.IValidatableObject
+    {
+        public string Username { get; set; } = "";
+        public bool AcceptedTerms { get; set; }
+        public string? Website { get; set; }
+        public string Timestamp { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+
+        // Only required when creating a new account — existing users signing in don't re-accept.
+        internal bool IsCreateMode { get; set; } = true;
+
+        public IEnumerable<System.ComponentModel.DataAnnotations.ValidationResult> Validate(System.ComponentModel.DataAnnotations.ValidationContext validationContext)
+        {
+            if (IsCreateMode && !AcceptedTerms)
+            {
+                yield return new System.ComponentModel.DataAnnotations.ValidationResult(
+                    "You must agree to the Privacy Policy and Terms of Service.",
+                    [nameof(AcceptedTerms)]);
+            }
+        }
+    }
+
+    [SupplyParameterFromForm]
+    private UserRegistrationRequestForm? _form { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        _isCreateMode = Mode is null || string.Equals(Mode, "create", StringComparison.OrdinalIgnoreCase);
+
+        if (_form is not null)
+            _form.IsCreateMode = _isCreateMode;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _form ??= new();
+
+        // Check if cookie exists before making API call
+        var hasCookie = HttpContextAccessor.HttpContext?.Request.Cookies.ContainsKey("meducateapi_auth") ?? false;
+
+        if (!hasCookie)
+        {
+            // No cookie = not authenticated, show the form
+            _isLoading = false;
+            return;
+        }
+
+        var userStatus = await Api.GetUserStatusAsync();
+
+        if (userStatus is not null && userStatus.IsEmailVerified)
+        {
+            if (userStatus.OrganisationId is not null)
+            {
+                if (userStatus.HasApiKeys)
+                    Nav.NavigateTo("/dashboard", replace: true);
+                else
+                    Nav.NavigateTo($"/api-key?orgId={userStatus.OrganisationId}", replace: true);
+            }
+            else
+            {
+                Nav.NavigateTo("/create-organisation", replace: true);
+            }
+
+            return;
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task EnsureJsModule()
+    {
+        _jsModule ??= await JS.InvokeAsync<IJSObjectReference>("import",
+            "./Components/Pages/Register.razor.js");
+    }
+
+    private async Task OpenPrivacyModal()
+    {
+        _showPrivacyModal = true;
+        StateHasChanged();
+        await Task.Yield();
+        await EnsureJsModule();
+        await _jsModule!.InvokeVoidAsync("initScrollCheck", "privacyModalBody", "privacyConfirmBtn");
+    }
+
+    private void ClosePrivacyModal() => _showPrivacyModal = false;
+
+    private void ConfirmPrivacy()
+    {
+        _hasViewedPrivacy = true;
+        _showPrivacyModal = false;
+    }
+
+    private async Task OpenTermsModal()
+    {
+        _showTermsModal = true;
+        StateHasChanged();
+        await Task.Yield();
+        await EnsureJsModule();
+        await _jsModule!.InvokeVoidAsync("initScrollCheck", "termsModalBody", "termsConfirmBtn");
+    }
+
+    private void CloseTermsModal() => _showTermsModal = false;
+
+    private void ConfirmTerms()
+    {
+        _hasViewedTerms = true;
+        _showTermsModal = false;
+    }
+
+    private bool _isSubmitting;
+
+    public string? Alert { get; set; }
+    public string AlertCss { get; set; } = "alert-info";
+    private bool _isCompleted;
+
+    private bool IsCompleted => _isCompleted;
+
+    private async Task Submit()
+    {
+        if (_form is null || _isSubmitting)
+            return;
+
+        _isSubmitting = true;
+
+        try
+        {
+            var response = await Api.RegisterUserAsync(
+                _form.Username,
+                mode: _isCreateMode ? "create" : "signin",
+                acceptedTerms: _form.AcceptedTerms,
+                termsVersion: _isCreateMode ? "2026-03-02" : null,
+                website: _form.Website,
+                timestamp: _form.Timestamp);
+
+            Alert = response.Message;
+            AlertCss = response.IsSuccess ? "alert-success" : "alert-danger";
+            _isCompleted = response.IsSuccess;
+        }
+        catch
+        {
+            Alert = "Unable to register at this time. Please try again later.";
+            AlertCss = "alert-danger";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

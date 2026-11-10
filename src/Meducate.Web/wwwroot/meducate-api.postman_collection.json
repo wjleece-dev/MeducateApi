@@ -1,0 +1,513 @@
+{
+  "info": {
+    "name": "Meducate API",
+    "description": "Structured, categorised health topic data (MedlinePlus + PubMed, refreshed daily) with WHO ICD-11 codes.\n\n**Quick start**\n1. Get a free API key at https://meducateapi.com/register (1,000 requests/day, no credit card).\n2. Set the `apiKey` collection variable to your key (format `keyId.secret`).\n3. Run any request, or run the whole collection: every request has tests, so it doubles as a smoke test.\n\nThe `apiKey` variable ships set to the **public demo key**, which works immediately but is shared by everyone and capped at 300 requests/day per address and 10,000/day across all users, so it may be exhausted. Use your own key for anything real.\n\n**Good to know**\n- Auth is the `X-Api-Key` header, applied to every request by this collection.\n- Limits: 1,000 requests/day per key on the free tier, 60/min. Responses carry `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`.\n- Educational and informational use only. The data must not be used for diagnosis, treatment recommendations or clinical decision support: https://meducateapi.com/terms\n- Full docs: https://meducateapi.com/docs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-Api-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.meducateapi.com",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "d3m0000000000000000000000000key1.MEDUCATE_PUBLIC_DEMO_2026",
+      "type": "string"
+    },
+    {
+      "key": "topicName",
+      "value": "Asthma",
+      "type": "string"
+    },
+    {
+      "key": "icd11Code",
+      "value": "CA23",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Topics",
+      "item": [
+        {
+          "name": "List topics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Paginated response with items\", function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.be.an(\"array\").that.is.not.empty;",
+                  "  pm.expect(body.totalCount).to.be.above(0);",
+                  "  pm.expect(body).to.have.property(\"hasNextPage\");",
+                  "});",
+                  "pm.test(\"Each item has name, type and category\", function () {",
+                  "  pm.response.json().items.forEach(function (t) {",
+                  "    pm.expect(t.name).to.be.a(\"string\");",
+                  "    pm.expect(t.topicType).to.be.a(\"string\");",
+                  "    pm.expect(t.category).to.be.a(\"string\");",
+                  "  });",
+                  "});",
+                  "pm.test(\"Rate limit headers are present\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"X-RateLimit-Limit\")).to.be.ok;",
+                  "  pm.expect(pm.response.headers.get(\"X-RateLimit-Remaining\")).to.be.ok;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics?take=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics"
+              ],
+              "query": [
+                {
+                  "key": "take",
+                  "value": "5",
+                  "description": "Page size (default 50, max 200). `pageSize` is an alias."
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "description": "Offset. Or use `page` (1-based) instead.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "1-based page number; alternative to `skip`.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paginated list of every topic, A to Z. Add `type` and/or `category` to filter (see the filtered request below, and the two reference lookups for valid values)."
+          },
+          "response": []
+        },
+        {
+          "name": "List topics filtered by type and category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Every item matches both filters\", function () {",
+                  "  const items = pm.response.json().items;",
+                  "  pm.expect(items).to.be.an(\"array\").that.is.not.empty;",
+                  "  items.forEach(function (t) {",
+                  "    pm.expect(t.topicType.toLowerCase()).to.eql(\"disease\");",
+                  "    pm.expect(t.category.toLowerCase()).to.eql(\"nervous system\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics?type=Disease&category=Nervous System&take=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "Disease",
+                  "description": "Topic type, e.g. Disease, Drug, Procedure, Symptom."
+                },
+                {
+                  "key": "category",
+                  "value": "Nervous System",
+                  "description": "Medical category, e.g. Respiratory System, Neoplasms."
+                },
+                {
+                  "key": "take",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "`type` and `category` combine (both must match). Values are case-insensitive. Valid values come from `GET /topics/types` and `GET /topics/categories`."
+          },
+          "response": []
+        },
+        {
+          "name": "Search topics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Results are relevant to the query\", function () {",
+                  "  const items = pm.response.json().items;",
+                  "  pm.expect(items).to.be.an(\"array\").that.is.not.empty;",
+                  "  items.forEach(function (t) { pm.expect(t.name.toLowerCase()).to.include(\"asthma\"); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics/search?query=asthma&take=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "asthma",
+                  "description": "Required. 1 to 200 characters."
+                },
+                {
+                  "key": "type",
+                  "value": "Disease",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "Respiratory System",
+                  "disabled": true
+                },
+                {
+                  "key": "take",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Partial, case-insensitive match on the topic name. Accepts the same `type`, `category` and paging parameters as the list."
+          },
+          "response": []
+        },
+        {
+          "name": "Get a topic by name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Full topic record\", function () {",
+                  "  const topic = pm.response.json();",
+                  "  pm.expect(topic.name.toLowerCase()).to.eql(pm.collectionVariables.get(\"topicName\").toLowerCase());",
+                  "  pm.expect(topic.summary).to.be.a(\"string\").that.is.not.empty;",
+                  "  // The three lists are named by topic type (see the request description).",
+                  "  const LISTS = {",
+                  "    \"Drug\": [\"sideEffects\", \"contraindications\", \"indications\"],",
+                  "    \"Procedure\": [\"risks\", \"reasons\", \"usedFor\"],",
+                  "    \"Diagnostic Test\": [\"risks\", \"reasons\", \"testsFor\"],",
+                  "    \"Vaccine\": [\"sideEffects\", \"contraindications\", \"prevents\"],",
+                  "    \"Symptom\": [\"relatedSymptoms\", \"associatedConditions\", \"management\"],",
+                  "    \"Anatomy\": [\"associatedConditions\", \"riskFactors\", \"relatedTreatments\"],",
+                  "    \"Nutrient\": [\"deficiencySymptoms\", \"dietarySources\", \"healthBenefits\"]",
+                  "  };",
+                  "  (LISTS[topic.topicType] || [\"symptoms\", \"causes\", \"treatments\"]).concat([\"citations\", \"tags\"]).forEach(function (field) {",
+                  "    pm.expect(topic[field], field).to.be.an(\"array\");",
+                  "  });",
+                  "  pm.expect(topic.category).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics/{{topicName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics",
+                "{{topicName}}"
+              ],
+              "query": []
+            },
+            "description": "The full record: summary, three type-specific lists, citations, tags and ICD-11 code. The three lists are named by topic type: diseases, disorders, syndromes and mental health use `symptoms` / `causes` / `treatments`; drugs use `sideEffects` / `contraindications` / `indications`; procedures `risks` / `reasons` / `usedFor`; and so on (full table: https://meducateapi.com/health-topics-api). The name is matched exactly but case-insensitively; URL-encode spaces (`Chest%20Pain`). Change the `topicName` collection variable to try others."
+          },
+          "response": []
+        },
+        {
+          "name": "Get a topic by ICD-11 code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Returned topic carries that ICD-11 code\", function () {",
+                  "  pm.expect(pm.response.json().icd11Code.toLowerCase()).to.eql(pm.collectionVariables.get(\"icd11Code\").toLowerCase());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics/icd11/{{icd11Code}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics",
+                "icd11",
+                "{{icd11Code}}"
+              ],
+              "query": []
+            },
+            "description": "Reverse lookup: the topic carrying a given WHO ICD-11 code (the `icd11Code` field on every coded topic). About half of all topics have a code: only diagnosable types are coded, and only when WHO's own entry is the topic. 404 if none matches."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reference lookups",
+      "item": [
+        {
+          "name": "List topic types",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Array of { type, count, href }\", function () {",
+                  "  const types = pm.response.json();",
+                  "  pm.expect(types).to.be.an(\"array\").that.is.not.empty;",
+                  "  types.forEach(function (t) {",
+                  "    pm.expect(t.type).to.be.a(\"string\");",
+                  "    pm.expect(t.count).to.be.above(0);",
+                  "    pm.expect(t.href).to.include(\"/api/v1/topics?type=\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics/types",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics",
+                "types"
+              ],
+              "query": []
+            },
+            "description": "Distinct topic types with how many topics each holds. `href` is the ready-made filtered list URL."
+          },
+          "response": []
+        },
+        {
+          "name": "List categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Array of { category, count, href }\", function () {",
+                  "  const cats = pm.response.json();",
+                  "  pm.expect(cats).to.be.an(\"array\").that.is.not.empty;",
+                  "  cats.forEach(function (c) {",
+                  "    pm.expect(c.category).to.be.a(\"string\");",
+                  "    pm.expect(c.count).to.be.above(0);",
+                  "    pm.expect(c.href).to.include(\"/api/v1/topics?category=\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics",
+                "categories"
+              ],
+              "query": []
+            },
+            "description": "The medical categories (body systems and content areas) with topic counts. Independent of topic type: every topic has one of each."
+          },
+          "response": []
+        },
+        {
+          "name": "Recent changes",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"since\", new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Changes are well-formed\", function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.be.an(\"array\");",
+                  "  body.items.forEach(function (c) {",
+                  "    pm.expect(c.changeType).to.be.oneOf([\"Added\", \"Updated\"]);",
+                  "    pm.expect(c.name).to.be.a(\"string\");",
+                  "    pm.expect(c.lastUpdated).to.be.a(\"string\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/topics/changes?since={{since}}&take=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "topics",
+                "changes"
+              ],
+              "query": [
+                {
+                  "key": "since",
+                  "value": "{{since}}",
+                  "description": "Required. ISO 8601, e.g. 2026-11-01T00:00:00Z."
+                },
+                {
+                  "key": "take",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Topics added or updated since a timestamp, newest first. `changeType` is \"Added\" for topics never reprocessed since creation, otherwise \"Updated\" (an approximation). Removals are not tracked. The pre-request script sets `since` to seven days ago; replace it with your last sync time."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Service",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ],
+              "query": []
+            },
+            "description": "Liveness probe. No API key needed and it doesn't count against your limit."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

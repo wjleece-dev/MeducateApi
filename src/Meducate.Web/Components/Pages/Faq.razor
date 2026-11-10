@@ -1,0 +1,223 @@
+@page "/faq"
+
+<SeoHead Title="FAQ | Meducate API"
+         Description="Answers to common questions about Meducate API: pricing, data sources, topic categories, authentication, and usage limits."
+         Canonical="https://meducateapi.com/faq">
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@@type": "Question",
+                "name": "What is Meducate API?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "Meducate API is a medical data REST API that provides structured, categorised health topic data. It aggregates information from trusted sources like MedlinePlus and PubMed, processes it with LLMs, and serves it as consistent, developer-friendly JSON."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "How are topics categorised?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "Meducate assigns every health topic to one of 26 categories grouped by body system (Respiratory, Circulatory, Digestive) and content type (Drugs & Medications, Diagnostic & Laboratory, Health & Wellness). This lets you filter and group topics by medical area. The categories organise educational content; they are not clinical diagnosis codes."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "Is Meducate API free?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "Yes, Meducate API is free to use. Register for an account and you receive 1,000 requests per day at no cost. There are no credit card requirements to get started."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "How do I authenticate API requests?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "All API requests must include an X-Api-Key header containing your API key. You can generate API keys from your dashboard after registering and creating an organisation."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "What are the rate limits?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "Each API key allows 1,000 requests per day and 60 requests per minute. The daily count resets at midnight UTC. Requests exceeding either limit receive a 429 Too Many Requests response with a Retry-After header. You can create up to 5 API keys per organisation."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "What data formats does the API return?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "The API returns JSON. Each health topic includes a name, description, category, topic type (Disease, Drug, Procedure, etc.), and structured content from multiple sources."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "Where does the medical data come from?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "Data originates from MedlinePlus, the U.S. National Library of Medicine's health information service covering around 1,000 topics. It is supplemented with research context from PubMed. The source is checked daily and a topic is re-processed when its source changes."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "How often is the data updated?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "Meducate runs automated background jobs daily to discover new topics, check existing sources for changes, and re-process topics whose source changed. API responses reflect the latest processed dataset."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "Can I use Meducate API for clinical decision-making?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "No. Meducate API is designed for educational and informational use only. It does not constitute medical advice, diagnosis, or treatment. Always consult a qualified healthcare professional for clinical decisions."
+                }
+            },
+            {
+                "@@type": "Question",
+                "name": "What endpoints are available?",
+                "acceptedAnswer": {
+                    "@@type": "Answer",
+                    "text": "Meducate API exposes endpoints to search health topics by keyword, retrieve a specific topic by name, and filter topics by category or type. See the full endpoint reference in the documentation."
+                }
+            }
+        ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://meducateapi.com/"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "FAQ",
+                "item": "https://meducateapi.com/faq"
+            }
+        ]
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <BreadcrumbNav PageName="FAQ" />
+
+            <h1 class="fw-bold mb-3">Frequently Asked Questions</h1>
+            <p class="lead">Common questions about Meducate API.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold mt-4">What is Meducate API?</h2>
+            <p>Meducate API is a medical data REST API that provides structured, categorised health topic data for developers. It aggregates information from <strong>MedlinePlus</strong> and <strong>PubMed</strong>, processes it using large language models, and delivers it as consistent, developer-friendly JSON.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">How are topics categorised?</h2>
+            <p>Meducate assigns every health topic to one of 26 categories. These are grouped by body system (Respiratory, Circulatory, Digestive), condition category (Infectious & Parasitic, Neoplasms, Mental & Behavioral), and content type (Drugs & Medications, Diagnostic & Laboratory, Health & Wellness), so you can filter and group data by medical area.</p>
+            <p>These categories organise general health education content. They are not clinical diagnosis codes and are not intended for medical coding or billing.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Is Meducate API free?</h2>
+            <p>Yes. Meducate API is free to use. <a href="/register">Register for an account</a> and you receive 1,000 requests per day at no cost. No credit card is required to get started.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Can I use it in a commercial product?</h2>
+            <p>Yes. Commercial use is allowed on the free tier, within the rate limits and the <a href="/terms">terms</a>. Reselling access to the API itself needs our written consent.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">How do I authenticate API requests?</h2>
+            <p>All API requests require an <code>X-Api-Key</code> header containing your API key:</p>
+            <pre class="bg-light p-3 rounded">X-Api-Key: YOUR_API_KEY</pre>
+            <p>You generate API keys from your <a href="/dashboard">dashboard</a> after registering and creating an organisation. Keep your key secure and never expose it in client-side code.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">What are the rate limits?</h2>
+            <ul>
+                <li>1,000 requests per day per API key</li>
+                <li>60 requests per minute per API key</li>
+                <li>The daily count resets at midnight UTC</li>
+                <li>Requests exceeding either limit receive a <code>429 Too Many Requests</code> response with a <code>Retry-After</code> header</li>
+                <li>You can create up to 5 API keys per organisation</li>
+            </ul>
+
+            <hr>
+
+            <h2 class="fw-semibold">What data formats does the API return?</h2>
+            <p>All API responses are JSON. Each health topic includes:</p>
+            <ul>
+                <li>Topic name and description</li>
+                <li>Category (e.g. Respiratory System, Mental & Behavioral)</li>
+                <li>Topic type (Disease, Drug, Procedure, Symptom, etc.)</li>
+                <li>Structured summary synthesised from multiple sources</li>
+            </ul>
+
+            <hr>
+
+            <h2 class="fw-semibold">Where does the medical data come from?</h2>
+            <p>Data originates from <strong>MedlinePlus</strong>, the U.S. National Library of Medicine's health information service covering around 1,000 health topics. It is supplemented with research context from <strong>PubMed</strong>, the NLM's peer-reviewed biomedical literature database.</p>
+            <p>A topic only appears in Meducate if it is listed on MedlinePlus. The source is checked daily and topics removed from the source are automatically retired from the API.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">How often is the data updated?</h2>
+            <p>Meducate runs automated background jobs daily to discover new topics, check existing sources for changes, and regenerate the summaries of topics whose source changed. API responses serve the latest processed dataset.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Can I use Meducate API for clinical decision-making?</h2>
+            <p>No. Meducate API is for <strong>educational and informational use only</strong>. It does not constitute medical advice, diagnosis, or treatment recommendations. Always consult a qualified healthcare professional for clinical decisions.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Is the content written or reviewed by clinicians?</h2>
+            <p>No. Topics are generated from MedlinePlus and PubMed text by a language model and have not been clinically reviewed. Automated checks reduce errors: each list item is checked against the source text before publishing, and a rotating batch of topics is re-checked against its source every night. Each topic names its source organisations in <code>citations</code>; go to the source for anything that matters.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Can I cache the data?</h2>
+            <p>Yes, and you should. Responses carry an <code>ETag</code>, and <code>GET /api/v1/topics/changes?since=&lt;timestamp&gt;</code> returns only the topics added or updated since a given time, so you can keep a local copy current without downloading everything again.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Is there an uptime guarantee?</h2>
+            <p>No. Meducate is a small, independently run service with no service-level agreement. Current status is at <a href="https://api.meducateapi.com/health" target="_blank" rel="noopener">api.meducateapi.com/health</a>.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">What endpoints are available?</h2>
+            <p>Meducate API provides endpoints to:</p>
+            <ul>
+                <li>Search health topics by keyword</li>
+                <li>Retrieve a specific topic by name</li>
+                <li>Filter topics by category or topic type</li>
+            </ul>
+            <p>See the <a href="/docs">full endpoint reference</a> for request parameters, response schemas, and interactive examples.</p>
+
+            <hr>
+
+            <p class="text-muted">Have a question not answered here? <a href="/docs">See the documentation</a> or <a href="/register">create a free account</a> to get started.</p>
+
+        </div>
+    </div>
+</div>

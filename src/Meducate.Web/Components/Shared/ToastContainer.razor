@@ -1,0 +1,78 @@
+@using Meducate.Web.Services
+@inject ToastService ToastService
+@implements IDisposable
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+    @foreach (var toast in ToastService.Toasts)
+    {
+        <div class="toast show @(toast.IsDismissing ? "toast-out" : "toast-in")" role="alert" @key="toast.Id">
+            <div class="toast-header @GetHeaderClass(toast.Type)">
+                <strong class="me-auto">@GetTitle(toast.Type)</strong>
+                <button type="button" class="btn-close btn-close-white" @onclick="() => ToastService.Dismiss(toast.Id)"></button>
+            </div>
+            <div class="toast-body">
+                @toast.Message
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .toast-in {
+        animation: toastSlideIn 0.3s ease-out forwards;
+    }
+
+    .toast-out {
+        animation: toastSlideOut 0.3s ease-in forwards;
+    }
+
+    @@keyframes toastSlideIn {
+        from {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @@keyframes toastSlideOut {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+    }
+</style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ToastService.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnChange -= StateHasChanged;
+    }
+
+    private static string GetHeaderClass(ToastType type) => type switch
+    {
+        ToastType.Success => "bg-success text-white",
+        ToastType.Error => "bg-danger text-white",
+        ToastType.Info => "bg-info text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    private static string GetTitle(ToastType type) => type switch
+    {
+        ToastType.Success => "Success",
+        ToastType.Error => "Error",
+        ToastType.Info => "Info",
+        _ => "Notice"
+    };
+}

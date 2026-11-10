@@ -1,0 +1,576 @@
+@page "/dashboard"
+@rendermode InteractiveServer
+@inject Meducate.Web.Services.ApiService Api
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IHttpContextAccessor HttpContextAccessor
+@inject Meducate.Web.Services.ToastService Toast
+
+@using Meducate.Web.Models
+
+<PageTitle>Dashboard - Meducate API</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            @if (_isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading…</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 class="fw-bold mb-0">Dashboard</h1>
+                        @if (!string.IsNullOrEmpty(_userStatus?.OrganisationName))
+                        {
+                            <p class="text-muted mb-0">@_userStatus.OrganisationName</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Usage Today</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn @(_showByKey ? "btn-outline-secondary" : "btn-secondary")" @onclick="() => _showByKey = false">Total</button>
+                            <button type="button" class="btn @(_showByKey ? "btn-secondary" : "btn-outline-secondary")" @onclick="() => _showByKey = true">By Key</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (!_showByKey)
+                        {
+                            <div class="row text-center">
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    <div class="text-muted small text-uppercase">Requests</div>
+                                    <div class="fs-2 fw-bold">@TotalUsageToday</div>
+                                </div>
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    <div class="text-muted small text-uppercase">Limit</div>
+                                    <div class="fs-2 fw-bold">@TotalDailyLimit</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-muted small text-uppercase">Used</div>
+                                    <div class="fs-2 fw-bold @(UsagePercentage >= 90 ? "text-danger" : UsagePercentage >= 70 ? "text-warning" : "text-success")">@UsagePercentage.ToString("F1")%</div>
+                                </div>
+                            </div>
+                            <div class="progress mt-3" style="height: 8px;">
+                                <div class="progress-bar @(UsagePercentage >= 90 ? "bg-danger" : UsagePercentage >= 70 ? "bg-warning" : "bg-success")"
+                                     role="progressbar"
+                                     style="width: @UsagePercentage.ToString("F1")%"
+                                     aria-valuenow="@UsagePercentage.ToString("F1")"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100"></div>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var key in _apiKeys)
+                            {
+                                var keyPercent = key.DailyLimit > 0 ? Math.Round(key.UsageToday * 100.0 / key.DailyLimit, 1) : 0.0;
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-medium">@key.Name</span>
+                                        <span class="text-muted small">@key.UsageToday / @key.DailyLimit (@keyPercent.ToString("F1")%)</span>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar @(keyPercent >= 90 ? "bg-danger" : keyPercent >= 70 ? "bg-warning" : "bg-success")"
+                                             role="progressbar"
+                                             style="width: @keyPercent.ToString("F1")%"></div>
+                                    </div>
+                                </div>
+                            }
+                            @if (_apiKeys.Count == 0)
+                            {
+                                <p class="text-muted mb-0">No API keys.</p>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Usage History (Last 7 Days)</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (_usageHistory.Count > 0)
+                        {
+                            var maxCount = _usageHistory.Max(h => h.Count);
+                            <div class="d-flex align-items-end justify-content-between gap-1" style="height: 160px;">
+                                @foreach (var item in _usageHistory)
+                                {
+                                    var heightPct = maxCount > 0 ? (int)Math.Round(item.Count * 100.0 / maxCount) : 0;
+                                    var isToday = item.Date == DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+                                    <div class="d-flex flex-column align-items-center flex-fill">
+                                        <small class="text-muted mb-1">@item.Count</small>
+                                        <div class="bg-primary rounded-top w-100" style="height: @(Math.Max(heightPct, 2))%; min-height: 4px;"></div>
+                                        <small class="mt-1 @(isToday ? "fw-bold" : "text-muted")">
+                                            @(DateOnly.TryParse(item.Date, out var d) ? d.ToString("ddd") : item.Date)
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">No usage data available</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Top Endpoints (Last 7 Days)</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (_topEndpoints.Count > 0)
+                        {
+                            var topMax = _topEndpoints.Max(e => e.Count);
+                            @foreach (var ep in _topEndpoints)
+                            {
+                                var widthPct = topMax > 0 ? (int)Math.Round(ep.Count * 100.0 / topMax) : 0;
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <code>@ep.Endpoint</code>
+                                        <span class="badge bg-secondary">@ep.Count</span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar" role="progressbar" style="width: @widthPct%"></div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">No endpoint data available</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">API Keys</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary">@_apiKeys.Count / 5</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="RefreshKeys" disabled="@_isRefreshing" title="Refresh">
+                                @if (_isRefreshing)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                }
+                                else
+                                {
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+                                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+                                    </svg>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+
+                        @if (_newApiKey is not null)
+                        {
+                            <div class="alert alert-warning">
+                                <strong>New API key generated.</strong> This will not be shown again.
+                            </div>
+
+                            <div class="input-group mb-3">
+                                <input class="form-control font-monospace" readonly value="@_newApiKey.ApiKey" />
+                                <button class="btn @(_copied ? "btn-success" : "btn-outline-secondary")" @onclick="CopyKey">
+                                    @(_copied ? "Copied!" : "Copy")
+                                </button>
+                            </div>
+
+                            <hr />
+                        }
+
+                        @if (_apiKeys.Count > 0)
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-3">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Key ID</th>
+                                            <th>Usage Today</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var key in _apiKeys)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    @if (_editingKeyId == key.Id)
+                                                    {
+                                                        <div class="d-flex gap-1">
+                                                            <input type="text" class="form-control form-control-sm"
+                                                                   style="width: 120px;"
+                                                                   @bind="_editingKeyName" />
+                                                            <button class="btn btn-sm btn-outline-success" @onclick="SaveKeyName">
+                                                                Save
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span @onclick="() => StartEdit(key)" style="cursor: pointer;" title="Click to rename">
+                                                            @key.Name
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td><code>@(key.KeyId.Length > 8 ? key.KeyId[..8] + "..." : key.KeyId)</code></td>
+                                                <td>
+                                                    <span class="@(key.UsageToday >= key.DailyLimit ? "text-danger fw-bold" : "")">
+                                                        @key.UsageToday / @key.DailyLimit
+                                                    </span>
+                                                </td>
+                                                <td class="text-end">
+                                                    <button class="btn btn-outline-danger btn-sm"
+                                                            disabled="@(_revokingKeyId == key.Id)"
+                                                            @onclick="() => ConfirmRevoke(key.Id)">
+                                                        @if (_revokingKeyId == key.Id)
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm"></span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>Revoke</span>
+                                                        }
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <p class="text-muted mb-2">No active API keys</p>
+                                <p class="text-muted small">Generate a key below to start using the API.</p>
+                            </div>
+                        }
+
+                        @if (_apiKeys.Count < 5)
+                        {
+                            <div class="row g-2 align-items-end">
+                                <div class="col">
+                                    <label class="form-label small text-muted mb-1">Key name (optional)</label>
+                                    <input type="text" class="form-control form-control-sm"
+                                           placeholder="e.g. Production, Development"
+                                           @bind="_newKeyName"
+                                           disabled="@_isGenerating" />
+                                </div>
+                                <div class="col-auto">
+                                    <button class="btn btn-primary" disabled="@_isGenerating" @onclick="GenerateKey">
+                                        @if (_isGenerating)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        Generate
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
+                        @if (_apiKeys.Count >= 5)
+                        {
+                            <p class="text-muted small mt-2 mb-0">Maximum of 5 active keys reached. Revoke an existing key to create a new one.</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Reference</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Authentication</h6>
+                        <pre class="bg-light p-3 rounded">X-Api-Key: YOUR_API_KEY</pre>
+
+                        <h6 class="mt-4">Usage Limits</h6>
+                        <ul class="mb-3">
+                            <li><strong>1,000 requests per day</strong> per API key</li>
+                            <li>Usage resets every 24 hours (UTC)</li>
+                        </ul>
+
+                        <a href="/docs" class="btn btn-primary">Try the API</a>
+                    </div>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@if (_confirmRevokeKeyId is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" @onkeydown="HandleKeyDown">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Revoke API key</h5>
+                    <button type="button" class="btn-close" @onclick="CancelRevoke"></button>
+                </div>
+                <div class="modal-body">
+                    @if (_isLastKey)
+                    {
+                        <div class="alert alert-warning mb-2">
+                            <strong>This is your only API key.</strong> You will lose API access until you generate a new one.
+                        </div>
+                    }
+                    <p class="mb-0">Are you sure you want to revoke this key? This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelRevoke">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ExecuteRevoke">Revoke</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private UserStatusResult? _userStatus;
+
+    private List<ApiKeyInfo> _apiKeys = [];
+    private List<UsageHistoryItem> _usageHistory = [];
+    private List<TopEndpointItem> _topEndpoints = [];
+    private bool _isGenerating;
+    private bool _isRefreshing;
+    private bool _showByKey;
+
+    private int TotalUsageToday => _apiKeys.Sum(k => k.UsageToday);
+    private int TotalDailyLimit => _apiKeys.Sum(k => k.DailyLimit);
+    private double UsagePercentage => TotalDailyLimit > 0 ? Math.Round(TotalUsageToday * 100.0 / TotalDailyLimit, 1) : 0.0;
+    private ApiKeyResult? _newApiKey;
+    private bool _copied;
+    private Guid? _revokingKeyId;
+    private Guid? _editingKeyId;
+    private string? _editingKeyName;
+    private string? _newKeyName;
+    private Guid? _confirmRevokeKeyId;
+    private bool _isLastKey;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hasCookie = HttpContextAccessor.HttpContext?.Request.Cookies.ContainsKey("meducateapi_auth") ?? false;
+        if (!hasCookie)
+        {
+            Nav.NavigateTo("/register?mode=signin", replace: true);
+            return;
+        }
+
+        _userStatus = await Api.GetUserStatusAsync();
+
+        if (_userStatus is null)
+        {
+            Nav.NavigateTo("/register?mode=signin", replace: true);
+            return;
+        }
+
+        if (_userStatus.OrganisationId is null)
+        {
+            Nav.NavigateTo("/create-organisation", replace: true);
+            return;
+        }
+
+        if (!_userStatus.HasApiKeys)
+        {
+            Nav.NavigateTo($"/api-key?orgId={_userStatus.OrganisationId}", replace: true);
+            return;
+        }
+
+        var orgId = _userStatus.OrganisationId.Value;
+        var keysTask = Api.GetApiKeysAsync(orgId);
+        var historyTask = Api.GetUsageHistoryAsync(orgId);
+        var endpointsTask = Api.GetTopEndpointsAsync(orgId);
+
+        await Task.WhenAll(keysTask, historyTask, endpointsTask);
+
+        _apiKeys = keysTask.Result;
+        _usageHistory = historyTask.Result;
+        _topEndpoints = endpointsTask.Result;
+        _isLoading = false;
+    }
+
+    private async Task GenerateKey()
+    {
+        if (_isGenerating || _userStatus?.OrganisationId is null)
+            return;
+
+        _isGenerating = true;
+        _newApiKey = null;
+        _copied = false;
+
+        try
+        {
+            var response = await Api.CreateApiKeyAsync(_userStatus.OrganisationId.Value, _newKeyName);
+
+            if (!response.IsSuccess || response.Data is null)
+            {
+                Toast.Error(response.Message ?? "Unable to generate API key.");
+                return;
+            }
+
+            _newApiKey = response.Data;
+            _newKeyName = null;
+            _apiKeys = await Api.GetApiKeysAsync(_userStatus.OrganisationId.Value);
+        }
+        catch
+        {
+            Toast.Error("Something went wrong while generating your API key.");
+        }
+        finally
+        {
+            _isGenerating = false;
+        }
+    }
+
+    private async Task RevokeKey(Guid keyId)
+    {
+        if (_revokingKeyId is not null || _userStatus?.OrganisationId is null)
+            return;
+
+        _revokingKeyId = keyId;
+
+        try
+        {
+            var response = await Api.RevokeApiKeyAsync(_userStatus.OrganisationId.Value, keyId);
+
+            if (response.IsSuccess)
+            {
+                _apiKeys = await Api.GetApiKeysAsync(_userStatus.OrganisationId.Value);
+                _newApiKey = null;
+
+                if (_apiKeys.Count == 0)
+                {
+                    Nav.NavigateTo($"/api-key?orgId={_userStatus.OrganisationId}", replace: true);
+                    return;
+                }
+            }
+            else
+            {
+                Toast.Error(response.Message ?? "Failed to revoke key.");
+            }
+        }
+        catch
+        {
+            Toast.Error("Something went wrong while revoking the key.");
+        }
+        finally
+        {
+            _revokingKeyId = null;
+        }
+    }
+
+    private async Task CopyKey()
+    {
+        if (_newApiKey is null)
+            return;
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", _newApiKey.ApiKey);
+        _copied = true;
+        Toast.Success("API key copied to clipboard");
+    }
+
+    private void StartEdit(ApiKeyInfo key)
+    {
+        _editingKeyId = key.Id;
+        _editingKeyName = key.Name;
+    }
+
+    private void CancelEdit()
+    {
+        _editingKeyId = null;
+        _editingKeyName = null;
+    }
+
+    private async Task SaveKeyName()
+    {
+        if (_editingKeyId is null || string.IsNullOrWhiteSpace(_editingKeyName) || _userStatus?.OrganisationId is null)
+            return;
+
+        var response = await Api.RenameApiKeyAsync(_userStatus.OrganisationId.Value, _editingKeyId.Value, _editingKeyName);
+
+        if (response.IsSuccess)
+        {
+            _apiKeys = await Api.GetApiKeysAsync(_userStatus.OrganisationId.Value);
+        }
+        else
+        {
+            Toast.Error(response.Message ?? "Failed to rename key.");
+        }
+
+        _editingKeyId = null;
+        _editingKeyName = null;
+    }
+
+    private void ConfirmRevoke(Guid keyId)
+    {
+        _confirmRevokeKeyId = keyId;
+        _isLastKey = _apiKeys.Count == 1;
+    }
+
+    private void CancelRevoke()
+    {
+        _confirmRevokeKeyId = null;
+        _isLastKey = false;
+    }
+
+    private async Task ExecuteRevoke()
+    {
+        if (_confirmRevokeKeyId is null)
+            return;
+
+        var keyId = _confirmRevokeKeyId.Value;
+        _confirmRevokeKeyId = null;
+        _isLastKey = false;
+
+        await RevokeKey(keyId);
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            CancelRevoke();
+    }
+
+    private async Task RefreshKeys()
+    {
+        if (_isRefreshing || _userStatus?.OrganisationId is null)
+            return;
+
+        _isRefreshing = true;
+
+        try
+        {
+            var orgId = _userStatus.OrganisationId.Value;
+            var keysTask = Api.GetApiKeysAsync(orgId);
+            var historyTask = Api.GetUsageHistoryAsync(orgId);
+            var endpointsTask = Api.GetTopEndpointsAsync(orgId);
+
+            await Task.WhenAll(keysTask, historyTask, endpointsTask);
+
+            _apiKeys = keysTask.Result;
+            _usageHistory = historyTask.Result;
+            _topEndpoints = endpointsTask.Result;
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+}

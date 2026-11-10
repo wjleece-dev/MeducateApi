@@ -1,0 +1,52 @@
+﻿@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    var theme = HttpContextAccessor.HttpContext?.Request.Cookies["theme"] ?? "light";
+}
+
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="@theme">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <script>
+        (function() {
+            var match = document.cookie.match(/(?:^|;\s*)theme=(\w+)/);
+            if (match) document.documentElement.setAttribute('data-bs-theme', match[1]);
+        })();
+
+        window.getTheme = function() {
+            return document.documentElement.getAttribute('data-bs-theme') || 'light';
+        };
+
+        window.toggleTheme = function() {
+            var current = document.documentElement.getAttribute('data-bs-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', next);
+            document.cookie = 'theme=' + next + ';path=/;max-age=31536000;Secure;SameSite=Strict';
+            return next;
+        };
+    </script>
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["Meducate.Web.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" href="/favicon.ico?v=3" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0d6efd" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <ReconnectModal />
+    <script src="@Assets["lib/bootstrap/dist/js/bootstrap.bundle.min.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>

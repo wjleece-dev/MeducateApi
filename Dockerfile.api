@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY Directory.Build.props ./
+COPY src/Meducate.Domain/Meducate.Domain.csproj src/Meducate.Domain/
+COPY src/Meducate.Application/Meducate.Application.csproj src/Meducate.Application/
+COPY src/Meducate.Infrastructure/Meducate.Infrastructure.csproj src/Meducate.Infrastructure/
+COPY src/Meducate.API/Meducate.API.csproj src/Meducate.API/
+RUN dotnet restore src/Meducate.API/Meducate.API.csproj
+
+COPY src/ src/
+RUN dotnet publish src/Meducate.API/Meducate.API.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app .
+
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+USER $APP_UID
+ENTRYPOINT ["dotnet", "Meducate.API.dll"]

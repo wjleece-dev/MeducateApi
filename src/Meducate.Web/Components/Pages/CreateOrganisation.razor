@@ -1,0 +1,173 @@
+﻿
+@page "/create-organisation"
+@rendermode InteractiveServer
+@inject Meducate.Web.Services.ApiService Api
+@inject NavigationManager Nav
+@inject IHttpContextAccessor HttpContextAccessor
+
+@using Meducate.Web.Components.Shared;
+@using Meducate.Web.Models;
+
+<PageTitle>Create Organisation - Meducate API</PageTitle>
+
+<div class="container min-vh-100 d-flex justify-content-center pt-5">
+    <div class="row w-100 justify-content-center">
+        <div class="col-md-6 col-lg-5">
+
+            <h3 class="fw-bold mb-2 text-center">Create organisation</h3>
+            <p class="text-muted text-center mb-4">
+                An organisation represents your application or service using the Meducate API.
+            </p>
+
+            @if (_isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading…</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+            <div class="card">
+                <div class="card-body">
+
+                    @if (_form is not null && !IsCompleted)
+                    {
+                        <EditForm Model="_form" OnValidSubmit="Submit" class="was-validated">
+                            <label for="organisationInput" class="form-label h5">Organisation name</label>
+                            <InputText id="organisationInput"
+                                       @bind-Value="_form.Organisation"
+                                       class="form-control"
+                                       required />
+
+                            <p class="text-muted small mt-2">
+                                You can change this later if needed.
+                            </p>
+
+                            <hr>
+
+                            <div class="d-flex justify-content-end">
+                                <SubmitButton Classes="btn-primary" IsLoading="_isSubmitting">
+                                    Continue
+                                </SubmitButton>
+                            </div>
+                        </EditForm>
+                    }
+
+                    @if (IsCompleted)
+                    {
+                        <div class="text-center py-3">
+                            <h5 class="fw-semibold mb-2">Organisation created</h5>
+                            <p class="text-muted mb-3">
+                                Your organisation has been set up successfully.
+                            </p>
+
+                            <div class="alert alert-success" role="alert">
+                                Next, you’ll generate an API key to start using the Meducate API.
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Alert) && !IsCompleted)
+                    {
+                        <div class="alert @AlertCss mt-3" role="alert">
+                            @Alert
+                        </div>
+                    }
+
+                </div>
+            </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private UserStatusResult? _userStatus;
+
+    private sealed record CreateOrganisationRequestForm
+    {
+        public string Organisation { get; set; } = "";
+    }
+
+    [SupplyParameterFromForm]
+    private CreateOrganisationRequestForm? _form { get; set; }
+
+    private bool _isSubmitting;
+
+    public string? Alert { get; set; }
+    public string AlertCss { get; set; } = "alert-info";
+    private bool _isCompleted;
+
+    private bool IsCompleted => _isCompleted;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _form ??= new();
+
+        var hasCookie = HttpContextAccessor.HttpContext?.Request.Cookies.ContainsKey("meducateapi_auth") ?? false;
+        if (!hasCookie)
+        {
+            Nav.NavigateTo("/register?mode=signin", replace: true);
+            return;
+        }
+
+        _userStatus = await Api.GetUserStatusAsync();
+
+        if (_userStatus is null)
+        {
+            Nav.NavigateTo("/register?mode=signin", replace: true);
+            return;
+        }
+
+        if (_userStatus.OrganisationId is not null)
+        {
+            if (_userStatus.HasApiKeys)
+                Nav.NavigateTo("/dashboard", replace: true);
+            else
+                Nav.NavigateTo($"/api-key?orgId={_userStatus.OrganisationId}", replace: true);
+            return;
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task Submit()
+    {
+        if (_form is null || _isSubmitting)
+            return;
+
+        _isSubmitting = true;
+
+        try
+        {
+            var response = await Api.CreateOrganisationAsync(_form.Organisation);
+
+            Alert = response.Message;
+            AlertCss = response.IsSuccess ? "alert-success" : "alert-danger";
+            _isCompleted = response.IsSuccess;
+
+            if (response.IsSuccess)
+            {
+                await Task.Delay(1500);
+
+                var orgId = response.Data;
+
+                Nav.NavigateTo($"/api-key?orgId={orgId}", replace: true);
+            }
+        }
+        catch
+        {
+            Alert = "Unable to create organisation at this time. Please try again later.";
+            AlertCss = "alert-danger";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+}

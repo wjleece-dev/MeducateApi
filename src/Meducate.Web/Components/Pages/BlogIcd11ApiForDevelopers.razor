@@ -1,0 +1,112 @@
+@page "/blog/icd-11-api-for-developers"
+
+<SeoHead Title="ICD-11 API for Developers: How to Get ICD-11 Codes | Meducate API"
+         Description="A practical guide to the WHO ICD-11 API for developers: how authentication and search actually work, where it's clunky, and how Meducate serves pre-matched ICD-11 codes without the setup."
+         Canonical="https://meducateapi.com/blog/icd-11-api-for-developers"
+         OgType="article">
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BlogPosting",
+        "headline": "ICD-11 API for Developers: How to Get ICD-11 Codes",
+        "description": "How the WHO ICD-11 API works, the parts that trip developers up, and how Meducate serves pre-matched ICD-11 codes without the OAuth and search setup.",
+        "url": "https://meducateapi.com/blog/icd-11-api-for-developers",
+        "image": "https://meducateapi.com/og-image.png",
+        "author": {
+            "@@type": "Organization",
+            "name": "Meducate API",
+            "url": "https://meducateapi.com"
+        },
+        "publisher": {
+            "@@type": "Organization",
+            "name": "Meducate API",
+            "url": "https://meducateapi.com"
+        },
+        "mainEntityOfPage": {
+            "@@type": "WebPage",
+            "@@id": "https://meducateapi.com/blog/icd-11-api-for-developers"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://meducateapi.com/"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "Blog",
+                "item": "https://meducateapi.com/blog"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 3,
+                "name": "ICD-11 API for Developers",
+                "item": "https://meducateapi.com/blog/icd-11-api-for-developers"
+            }
+        ]
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <BreadcrumbNav PageName="ICD-11 API for Developers" ParentName="Blog" ParentHref="/blog" />
+
+            <h1 class="fw-bold mb-3">ICD-11 API for Developers: How to Get ICD-11 Codes</h1>
+            <p class="lead">WHO publishes ICD-11 as a real API, not just a downloadable spreadsheet. That's good news. It's also OAuth2, a release-pinned search endpoint, and a response shape that takes a bit of reading to get right.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">What ICD-11 actually is</h2>
+            <p>ICD-11 is the World Health Organization's classification of diseases and health conditions, the current edition of the system hospitals, insurers, and health records use to code diagnoses. If you're building anything that touches conditions, symptoms, or diagnoses, an ICD-11 code is what lets your data talk to everyone else's.</p>
+            <p>WHO exposes it through the <a href="https://icd.who.int/icdapi" target="_blank" rel="noopener">ICD-API</a>, a real HTTP API with search, entity lookup, and hierarchy browsing. It's free to use. It's also built for completeness, not convenience, which shows up the moment you try to wire it into an app.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Authenticating against the WHO API</h2>
+            <p>Access is OAuth2 client-credentials. You register for a client ID and secret, then trade them for a bearer token at <code>icdaccessmanagement.who.int/connect/token</code> before every batch of requests. The token expires, so you're caching it and refreshing it yourself, on top of whatever HTTP client setup you already have.</p>
+            <p>Nothing about this is exotic if you've done OAuth2 before. It's just one more moving part between you and a search result, and it's the first place a quick integration slows down.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Searching: releases, headers, and what actually comes back</h2>
+            <p>The search endpoint is pinned to a specific release (a URL like <code>/icd/release/11/2026-01/mms/search</code>), not "the latest ICD-11." WHO cuts a new release roughly once a year, so whatever you point at will quietly age unless you're the one who remembers to bump it.</p>
+            <p>Every request needs an <code>API-Version</code> header and an <code>Accept-Language</code> header alongside the bearer token, or you'll get responses that don't look like what the docs show.</p>
+            <p>The response itself is a flat list of <code>destinationEntities</code>, and not all of them are codeable. ICD-11 is a hierarchy: chapters and blocks group things together but don't carry a diagnosis code themselves, only the leaf entities under them do. A naive integration that takes the first search result will happily hand back a chapter heading with no <code>theCode</code> field, which is worse than no match at all if your code doesn't check for it.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">How Meducate handles this</h2>
+            <p>Meducate's health topics are cross-referenced against ICD-11 automatically. Every diagnosable topic (diseases, disorders, syndromes, symptoms, and mental health topics) is looked up against the live WHO API. Chapter and block entries are skipped, and WHO's relevance ranking is not trusted: a result is only accepted when its title, or a synonym WHO lists for it, is the topic itself.</p>
+            <p>If nothing in the search results is confidently the same condition, the topic just doesn't get a code. We don't force a guess to fill the field: a topic with no ICD-11 code is more useful than one with the wrong one attached.</p>
+            <p>The result: you call <code>/topics/{name}</code> and get back <code>icd11Code</code> and <code>icd11Title</code> already populated where a confident match exists. No OAuth flow, no release URL to track, no filtering chapters out of search results yourself.</p>
+
+            <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://api.meducateapi.com/api/v1/topics/hypertension"</code></pre>
+
+            <p>The response includes the topic's structured content alongside its ICD-11 code, if one was matched, so you're not making a second call to a second API to join the two together.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">When you'd still want the WHO API directly</h2>
+            <p>Meducate's ICD-11 coding covers the topics in its own dataset. It's not a general-purpose ICD-11 lookup for arbitrary free-text input. If you need to code something outside that dataset, or you need the full classification hierarchy rather than a single best match, the WHO API directly is still the right tool. What Meducate saves you is the common case: an already-structured health topic that also needs a standard diagnostic code attached, without building the WHO integration yourself.</p>
+
+            <p class="mt-4">
+                <a href="/register" class="btn btn-primary me-2">Get your free API key. 1,000 requests/day, no credit card required.</a>
+                <a href="/docs" class="btn btn-outline-secondary">View documentation</a>
+            </p>
+            <p class="text-muted mt-3">Further reading: <a href="/blog/what-is-a-medical-data-api">What is a medical data API?</a> · <a href="/health-topics-api">Health Topics API</a></p>
+
+        </div>
+    </div>
+</div>

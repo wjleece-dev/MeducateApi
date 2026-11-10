@@ -1,0 +1,169 @@
+@page "/health-topics-api"
+
+<SeoHead Title="Health Topics API | Structured Medical Data | Meducate API"
+         Description="Retrieve structured health topic data via API. Covers symptoms, treatments, and conditions. Categorised and daily-refreshed."
+         Canonical="https://meducateapi.com/health-topics-api">
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://meducateapi.com/"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "Health Topics API",
+                "item": "https://meducateapi.com/health-topics-api"
+            }
+        ]
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <BreadcrumbNav PageName="Health Topics API" />
+
+            <h1 class="fw-bold mb-3">Health Topics API</h1>
+            <p class="lead">Query structured health topics through a simple REST API. Every topic is categorised, typed, and sourced from authoritative medical references.</p>
+
+            <a href="/register" class="btn btn-primary mt-2 mb-4">Get a free API key</a>
+
+            <hr>
+
+            <h2 class="fw-semibold">What health topic data is available?</h2>
+            <p>The Meducate health topics API provides access to a structured dataset of 800+ medical topics sourced from the MedlinePlus health topic library, spanning every major area of medicine.</p>
+            <p>Each health topic in the API includes:</p>
+            <ul>
+                <li><strong>Name:</strong> the canonical topic name</li>
+                <li><strong>Description:</strong> a structured summary synthesised from authoritative sources</li>
+                <li><strong>Type:</strong> classification of the topic kind: Disease, Disorder, Syndrome, Symptom, Mental Health, Drug, Procedure, Diagnostic Test, Vaccine, Anatomy, or Nutrient</li>
+                <li><strong>Category:</strong> the body-system or content-type category the topic belongs to (e.g. Respiratory System, Mental & Behavioral, Circulatory System)</li>
+                <li><strong>Three lists:</strong> what the topic is about, named by its type (see the table below)</li>
+                <li><strong>ICD-11 code and title</strong> where a confident match exists, plus <strong>citations</strong>, <strong>tags</strong>, <code>lastUpdated</code> and <code>version</code></li>
+            </ul>
+
+            <h3 class="fw-semibold mt-3">List field names by topic type</h3>
+            <p>Each topic returns three lists. Their JSON field names depend on the topic type, so a drug&rsquo;s side effects and a disease&rsquo;s symptoms use different keys:</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr><th>Topic type</th><th>List 1</th><th>List 2</th><th>List 3</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Disease, Disorder, Syndrome, Mental Health</td><td><code>symptoms</code></td><td><code>causes</code></td><td><code>treatments</code></td></tr>
+                        <tr><td>Symptom</td><td><code>relatedSymptoms</code></td><td><code>associatedConditions</code></td><td><code>management</code></td></tr>
+                        <tr><td>Drug</td><td><code>sideEffects</code></td><td><code>contraindications</code></td><td><code>indications</code></td></tr>
+                        <tr><td>Procedure</td><td><code>risks</code></td><td><code>reasons</code></td><td><code>usedFor</code></td></tr>
+                        <tr><td>Diagnostic Test</td><td><code>risks</code></td><td><code>reasons</code></td><td><code>testsFor</code></td></tr>
+                        <tr><td>Vaccine</td><td><code>sideEffects</code></td><td><code>contraindications</code></td><td><code>prevents</code></td></tr>
+                        <tr><td>Anatomy</td><td><code>associatedConditions</code></td><td><code>riskFactors</code></td><td><code>relatedTreatments</code></td></tr>
+                        <tr><td>Nutrient</td><td><code>deficiencySymptoms</code></td><td><code>dietarySources</code></td><td><code>healthBenefits</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted small">A list can be empty when the source material doesn&rsquo;t cover it, for example a routine test with no stated risks. Check the <code>topicType</code> field first, then read the matching names.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Topic types covered</h2>
+
+            <h3 class="fw-semibold mt-3">Diseases, disorders, and syndromes</h3>
+            <p>The largest group. Covers chronic conditions (diabetes, hypertension, asthma), acute diseases (pneumonia, appendicitis), infectious diseases (influenza, HIV), functional disorders, named syndromes, and rare conditions. Each is classified by body system or condition category.</p>
+
+            <h3 class="fw-semibold mt-3">Mental health</h3>
+            <p>Mental health conditions including anxiety, depression, PTSD, and other psychological and behavioural disorders. Classified under the Mental & Behavioral category.</p>
+
+            <h3 class="fw-semibold mt-3">Symptoms</h3>
+            <p>Common patient-reported symptoms classified by body system, with general information on presentation, associated factors, and typical management. For informational lookup and reference use. See our <a href="/use-cases">use cases</a> for what this is and isn't appropriate for.</p>
+
+            <h3 class="fw-semibold mt-3">Drugs, procedures, and diagnostic tests</h3>
+            <p>Medications and drug classes, medical and surgical procedures, and diagnostic or laboratory tests, each with general-audience information on what they're for, how they work, and what to know about them.</p>
+
+            <h3 class="fw-semibold mt-3">Vaccines, anatomy, and nutrients</h3>
+            <p>Vaccines and immunisations, body systems and anatomical structures, and dietary nutrients and supplements, rounding out the reference material available alongside conditions and symptoms. These types are currently small (a handful of vaccines and anatomy topics, and a couple of dozen drugs), because the source is MedlinePlus health topics rather than a drug or anatomy database. <code>GET /api/v1/topics/types</code> returns the live count for each type.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Category coverage</h2>
+            <p>Every topic is assigned to one of 26 categories:</p>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <ul>
+                        <li>Infectious & Parasitic Diseases</li>
+                        <li>Neoplasms</li>
+                        <li>Blood & Immune System</li>
+                        <li>Endocrine, Nutritional & Metabolic</li>
+                        <li>Mental & Behavioral</li>
+                        <li>Nervous System</li>
+                        <li>Eye & Ear</li>
+                        <li>Circulatory System</li>
+                        <li>Respiratory System</li>
+                        <li>Digestive System</li>
+                        <li>Skin & Subcutaneous Tissue</li>
+                        <li>Musculoskeletal & Connective Tissue</li>
+                        <li>Sleep-Wake Disorders</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul>
+                        <li>Genitourinary System</li>
+                        <li>Sexual Health</li>
+                        <li>Pregnancy & Childbirth</li>
+                        <li>Perinatal & Congenital</li>
+                        <li>Symptoms & Signs</li>
+                        <li>Injury & Poisoning</li>
+                        <li>External Causes & Factors</li>
+                        <li>Drugs & Medications</li>
+                        <li>Medical Procedures & Interventions</li>
+                        <li>Diagnostic & Laboratory</li>
+                        <li>Health & Wellness</li>
+                        <li>Nutrition & Dietary</li>
+                        <li>Preventive Care & Screening</li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr>
+
+            <h2 class="fw-semibold">Querying health topics</h2>
+            <p>The health topics API supports searching by keyword and filtering by category or type. A simple search looks like this:</p>
+
+            <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://api.meducateapi.com/api/v1/topics/search?query=diabetes"</code></pre>
+
+            <p>To retrieve a specific topic by name:</p>
+
+            <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://api.meducateapi.com/api/v1/topics/asthma"</code></pre>
+
+            <p>See the <a href="/docs">full API documentation</a> for all available endpoints, query parameters, and response schemas.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Data sources</h2>
+            <p>Health topic data is sourced from:</p>
+            <ul>
+                <li><strong>MedlinePlus:</strong> U.S. National Library of Medicine, the primary source for topic discovery. Medical conditions sourced from MedlinePlus are discovered automatically and retired when removed from MedlinePlus.</li>
+                <li><strong>PubMed:</strong> peer-reviewed biomedical literature from the NLM. Used to enrich topics with additional research context.</li>
+                <li><strong>WHO ICD-11:</strong> diagnostic codes and titles from the World Health Organization&rsquo;s International Classification of Diseases, 11th Revision (MMS, release 2026-01). &copy; World Health Organization, used under the WHO ICD API terms of use.</li>
+            </ul>
+
+            <hr>
+
+            <p class="mt-4">
+                <a href="/register" class="btn btn-primary me-2">Get a free API key</a>
+                <a href="/docs" class="btn btn-outline-secondary">View documentation</a>
+            </p>
+            <p class="text-muted mt-3">Also see: <a href="/medical-data-api">Medical Data API</a> · <a href="/use-cases">Use Cases</a></p>
+
+        </div>
+    </div>
+</div>

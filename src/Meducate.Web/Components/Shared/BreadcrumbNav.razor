@@ -1,0 +1,18 @@
+@* Renders a two-level breadcrumb: Home > PageName *@
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        @if (ParentName is not null && ParentHref is not null)
+        {
+            <li class="breadcrumb-item"><a href="@ParentHref">@ParentName</a></li>
+        }
+        <li class="breadcrumb-item active" aria-current="page">@PageName</li>
+    </ol>
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public string PageName { get; set; } = "";
+    [Parameter] public string? ParentName { get; set; }
+    [Parameter] public string? ParentHref { get; set; }
+}

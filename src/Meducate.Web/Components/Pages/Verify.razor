@@ -1,0 +1,103 @@
+﻿@page "/verify"
+@rendermode InteractiveServer
+
+@inject Meducate.Web.Services.ApiService Api
+@inject NavigationManager Nav
+@inject PersistentComponentState PersistState
+
+@using Microsoft.AspNetCore.WebUtilities
+@using Meducate.Web.Models
+
+<PageTitle>Verify Email - Meducate API</PageTitle>
+
+<div class="container min-vh-100 d-flex justify-content-center pt-5">
+    <div class="row w-100 justify-content-center">
+        <div class="col-md-6 col-lg-5 text-center">
+
+            <h3 class="fw-bold mb-3">Email verification</h3>
+
+            @if (_isLoading)
+            {
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading…</span>
+                </div>
+                <p class="text-muted">Verifying your email address…</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Alert))
+            {
+                <div class="alert @AlertCss mt-3">
+                    @Alert
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private UserStatusResult? _userStatus;
+
+    public string? Alert { get; set; }
+    public string AlertCss { get; set; } = "alert-info";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        // If a token is present, delegate to the server-side proxy endpoint
+        // which can forward the Set-Cookie header to the browser.
+        if (query.TryGetValue("token", out var tokenValues)
+            && !string.IsNullOrWhiteSpace(tokenValues.FirstOrDefault()))
+        {
+            var token = tokenValues.FirstOrDefault()!;
+            Nav.NavigateTo($"/auth/verify?token={Uri.EscapeDataString(token)}", forceLoad: true);
+            return;
+        }
+
+        // If redirected from /auth/verify with an error message
+        if (query.TryGetValue("message", out var msgValues)
+            && !string.IsNullOrWhiteSpace(msgValues.FirstOrDefault()))
+        {
+            Alert = msgValues.FirstOrDefault();
+            AlertCss = "alert-danger";
+            _isLoading = false;
+            return;
+        }
+
+        // No token, no message — check auth status for redirect
+        if (!PersistState.TryTakeFromJson<UserStatusResult>("user-status", out _userStatus))
+        {
+            _userStatus = await Api.GetUserStatusAsync();
+
+            PersistState.RegisterOnPersisting(() =>
+            {
+                PersistState.PersistAsJson("user-status", _userStatus);
+                return Task.CompletedTask;
+            });
+        }
+
+        if (_userStatus is not null && _userStatus.IsEmailVerified)
+        {
+            if (_userStatus.OrganisationId is not null)
+            {
+                if (_userStatus.HasApiKeys)
+                    Nav.NavigateTo("/dashboard", replace: true);
+                else
+                    Nav.NavigateTo($"/api-key?orgId={_userStatus.OrganisationId}", replace: true);
+            }
+            else
+            {
+                Nav.NavigateTo("/create-organisation", replace: true);
+            }
+
+            return;
+        }
+
+        Alert = "This verification link is invalid.";
+        AlertCss = "alert-danger";
+        _isLoading = false;
+    }
+}

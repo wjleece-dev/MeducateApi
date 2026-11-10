@@ -1,0 +1,312 @@
+@page "/"
+@rendermode InteractiveServer
+@inject Meducate.Web.Services.ApiService Api
+@inject NavigationManager Nav
+@inject IHttpContextAccessor HttpContextAccessor
+
+@using Meducate.Web.Models
+
+<SeoHead Title="Meducate API | Structured Medical Data API for Developers"
+         Description="Meducate API delivers structured, categorised medical data refreshed daily from MedlinePlus and PubMed. Free tier available for developers."
+         Canonical="https://meducateapi.com/">
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "WebSite",
+        "name": "Meducate API",
+        "url": "https://meducateapi.com",
+        "description": "Structured medical data API delivering categorised health topics refreshed daily from MedlinePlus and PubMed.",
+        "publisher": {
+            "@@type": "Organization",
+            "name": "Meducate API",
+            "url": "https://meducateapi.com"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "SoftwareApplication",
+        "name": "Meducate API",
+        "url": "https://meducateapi.com",
+        "description": "A medical data REST API that delivers structured, categorised health topics refreshed daily from trusted sources including MedlinePlus and PubMed.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "offers": {
+            "@@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "provider": {
+            "@@type": "Organization",
+            "name": "Meducate API",
+            "url": "https://meducateapi.com"
+        }
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <h1 class="fw-bold mb-3">Structured Medical Education API for Developers</h1>
+
+            <p class="lead">Meducate API provides developers with structured, up-to-date medical education data through a simple REST API.</p>
+
+            <p class="text-muted">About 870 MedlinePlus health topics: conditions, symptoms, procedures and tests, each with ICD-11 codes where a match exists. Individual drug coverage is limited.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">How the platform works</h2>
+
+            <ol class="mt-3">
+                <li>
+                    <strong>Create an account</strong><br />
+                    Register with your email address to verify your identity.
+                </li>
+
+                <li class="mt-2">
+                    <strong>Create an organisation</strong><br />
+                    Each account creates an organisation that represents your application or service.
+                </li>
+
+                <li class="mt-2">
+                    <strong>Generate an API key</strong><br />
+                    Your organisation is issued an API key to authenticate requests.
+                </li>
+
+                <li class="mt-2">
+                    <strong>Make API requests</strong><br />
+                    Query Meducate endpoints using your API key.
+                </li>
+            </ol>
+
+            <a href="/register" class="btn btn-primary mt-3">Get your free API key. 1,000 requests/day, no credit card required.</a>
+
+            <div class="mt-3 d-flex flex-wrap gap-2">
+                <a href="/medical-data-api" class="btn btn-sm btn-outline-primary">Medical Data API</a>
+                <a href="/health-topics-api" class="btn btn-sm btn-outline-primary">Health Topics API</a>
+                <a href="/use-cases" class="btn btn-sm btn-outline-primary">Use Cases</a>
+                <a href="/pricing" class="btn btn-sm btn-outline-primary">Pricing</a>
+                <a href="/faq" class="btn btn-sm btn-outline-primary">FAQ</a>
+            </div>
+
+            <hr>
+
+            <h2 class="fw-semibold">What Meducate API does</h2>
+
+            <p>Meducate aggregates medical reference data from external providers and processes it using large language models (LLMs). Health topics are classified by type (e.g. Disease, Drug, Procedure) and assigned to <strong>body-system and content-type categories</strong>.</p>
+
+            <p>All topics are structured into predictable formats with categories grouped by body system (Respiratory System, Circulatory System, Mental & Behavioral, etc.).</p>
+
+            <p>Source data is checked <strong>daily</strong> by automated background jobs, and a topic is re-processed whenever its source text changes.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Medical classification</h2>
+
+            <p>Every health topic is automatically classified into one of 26 categories:</p>
+
+            <ul class="mt-3">
+                <li>Body system categories (Respiratory, Circulatory, Nervous, Digestive, etc.)</li>
+                <li>Condition categories (Infectious & Parasitic Diseases, Neoplasms, Mental & Behavioral)</li>
+                <li>Treatment categories (Drugs & Medications, Medical Procedures, Diagnostic & Laboratory)</li>
+                <li>Wellness categories (Health & Wellness, Nutrition & Dietary, Preventive Care)</li>
+            </ul>
+
+            <p>This makes it straightforward to filter and group topics by medical category.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Our data sources</h2>
+
+            <div class="mt-3">
+                <h3 class="fw-semibold">Primary source</h3>
+                <ul>
+                    <li>
+                        <strong>MedlinePlus</strong>: a comprehensive health information service from the U.S. National Library of Medicine, covering around 1,000 health topics, updated regularly.
+                    </li>
+                </ul>
+                <p>A health topic will only appear in Meducate if it is listed on MedlinePlus. If a topic is removed from MedlinePlus, it is automatically removed from Meducate.</p>
+
+                <h3 class="fw-semibold mt-3">Supplementary source</h3>
+                <ul>
+                    <li>
+                        <strong>PubMed</strong>: peer-reviewed biomedical literature from the U.S. National Library of Medicine. PubMed is used to supplement and enrich existing health topics with additional research context, but does not determine which topics are included.
+                    </li>
+                </ul>
+            </div>
+
+            <hr>
+
+            <h2 class="fw-semibold">How data is processed</h2>
+
+            <p>Raw source material from each provider is processed by large language models (LLMs) to produce structured, consistent summaries. This means the information you receive through the API is rewritten and restructured from the sources rather than copied. Some phrases still follow the source wording closely, so each topic names its source organisations in <code>citations</code>.</p>
+
+            <p>We recommend that users always refer to the original sources for clinical decision-making. Meducate is designed for educational and informational use.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Quality control</h2>
+
+            <p>All processed data is subject to automated quality checks that run nightly after each refresh cycle.</p>
+
+            <ul class="mt-3">
+                <li>Every health topic is validated for completeness: summary, classification, observations, risk factors, and recommended actions</li>
+                <li>Before a topic is published, each list item is checked against the source text and removed if the source does not support it</li>
+                <li>A re-extraction that is worse than the stored topic (a missing list, for example) is discarded and the stored version stays live</li>
+                <li>A rotating batch of topics is re-checked each night against its original source text, flagging content that diverges from it</li>
+                <li>Category consistency is verified across the entire dataset on every run</li>
+                <li>Failures trigger an alert email for review</li>
+            </ul>
+
+            <p>These checks are automated and reduce errors; they do not make the content clinically reviewed. Topics are generated from MedlinePlus and PubMed by a language model, and every topic names its source organisations in <code>citations</code>.</p>
+
+            <p class="text-muted">Meducate is for education and information only. It is not medical advice and must not be used for diagnosis or treatment decisions.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Data freshness</h2>
+
+            <ul class="mt-3">
+                <li>New health topics are discovered and classified automatically as providers publish them</li>
+                <li>Source data is checked for changes <strong>once per day</strong></li>
+                <li>A topic is regenerated when its source text changes, so summaries follow the most recent available information</li>
+                <li>Topics removed by all providers are automatically retired</li>
+                <li>API responses always serve the latest processed dataset</li>
+            </ul>
+
+            <hr>
+
+            <h2 class="fw-semibold">Authentication</h2>
+
+            <p>All API requests must include your organisation’s API key using the <code>X-Api-Key</code> request header.</p>
+
+            <pre class="bg-light p-3 rounded mt-3">X-Api-Key: YOUR_API_KEY</pre>
+            <p class="text-muted mt-2">Keep your API key secure. Do not expose it in client-side or public applications.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Usage limits</h2>
+
+            <p>API usage is rate limited.</p>
+
+            <ul class="mt-3">
+                <li><strong>1,000 requests per day</strong> per API key (up to 5 keys per organisation)</li>
+                <li><strong>60 requests per minute</strong> burst limit per API key</li>
+                <li>Usage resets every 24 hours</li>
+                <li>Requests exceeding either limit will be rejected</li>
+            </ul>
+
+            <hr>
+
+            <h2 class="fw-semibold" id="waitlist">Need higher limits? Join the Pro waitlist.</h2>
+
+            <p>We’re building a Pro tier with higher rate limits and priority support. Enter your email to be notified when it launches.</p>
+
+            @if (_waitlistDone)
+            {
+                <div class="alert alert-success mt-3" role="alert">
+                    You’re on the list. We’ll be in touch when Pro launches.
+                </div>
+            }
+            else
+            {
+                <div class="d-flex gap-2 mt-3" style="max-width: 440px;">
+                    @* Honeypot field — hidden from real users, bots fill it *@
+                    <div style="position: absolute; left: -9999px;" aria-hidden="true">
+                        <label for="waitlistWebsite">Website</label>
+                        <input id="waitlistWebsite" type="text" tabindex="-1" autocomplete="off" @bind="_waitlistWebsite" />
+                    </div>
+                    <input type="email"
+                           class="form-control"
+                           placeholder="your@email.com"
+                           @bind="_waitlistEmail"
+                           @bind:event="oninput"
+                           disabled="@_waitlistSubmitting" />
+                    <button class="btn btn-outline-primary text-nowrap"
+                            @onclick="SubmitWaitlist"
+                            disabled="@_waitlistSubmitting">
+                        @(_waitlistSubmitting ? "Joining..." : "Join waitlist")
+                    </button>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_waitlistError))
+                {
+                    <div class="alert alert-danger mt-2" role="alert">@_waitlistError</div>
+                }
+            }
+
+            <p class="text-muted small mt-2">See the <a href="/pricing">pricing page</a> for full details on the free and Pro tiers.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Get started</h2>
+
+            <p>Free tier: 1,000 requests per day, no credit card required. Create an account and you’ll be guided through organisation setup and API key creation in a few minutes.</p>
+
+            <a href="/register" class="btn btn-primary btn-lg mt-2 mb-4">Get your free API key</a>
+            <p class="text-muted">Or <a href="/docs">explore the API with a public demo key</a> without creating an account.</p>
+
+            <p class="text-muted small mt-3">API status: <a href="https://api.meducateapi.com/health" target="_blank" rel="noopener">api.meducateapi.com/health</a></p>
+            <p class="text-muted small">By using this service, you agree to our <a href="/terms">terms of service</a> and <a href="/privacy">privacy policy</a>.</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _waitlistEmail = "";
+    private bool _waitlistSubmitting;
+    private bool _waitlistDone;
+    private string? _waitlistError;
+    private string _waitlistWebsite = "";
+    private readonly string _waitlistTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hasCookie = HttpContextAccessor.HttpContext?.Request.Cookies.ContainsKey("meducateapi_auth") ?? false;
+        if (!hasCookie)
+            return;
+
+        var status = await Api.GetUserStatusAsync();
+
+        if (status is not null && status.HasApiKeys)
+        {
+            Nav.NavigateTo("/dashboard", replace: true);
+        }
+    }
+
+    private async Task SubmitWaitlist()
+    {
+        _waitlistError = null;
+
+        if (string.IsNullOrWhiteSpace(_waitlistEmail) || !_waitlistEmail.Contains('@'))
+        {
+            _waitlistError = "Please enter a valid email address.";
+            return;
+        }
+
+        _waitlistSubmitting = true;
+
+        try
+        {
+            var result = await Api.WaitlistAsync(_waitlistEmail.Trim(), _waitlistWebsite, _waitlistTimestamp);
+            if (result.IsSuccess)
+            {
+                _waitlistDone = true;
+            }
+            else
+            {
+                _waitlistError = result.Message ?? "Something went wrong. Please try again.";
+            }
+        }
+        catch
+        {
+            _waitlistError = "Unable to join the waitlist right now. Please try again later.";
+        }
+        finally
+        {
+            _waitlistSubmitting = false;
+        }
+    }
+}

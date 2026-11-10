@@ -1,0 +1,86 @@
+@page "/pricing"
+
+<SeoHead Title="Pricing | Meducate API"
+         Description="Meducate API is free to use with 1,000 requests per day. No credit card required. Pro tier with higher limits coming soon."
+         Canonical="https://meducateapi.com/pricing" />
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <h1 class="fw-bold mb-2">Pricing</h1>
+            <p class="lead mb-4">Start building immediately. No credit card, no approval process.</p>
+
+            <div class="row g-4">
+
+                <div class="col-md-6">
+                    <div class="card h-100 border-primary">
+                        <div class="card-header bg-primary text-white fw-semibold">
+                            Free
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <p class="display-6 fw-bold mb-0">$0</p>
+                            <p class="text-muted mb-3">per month, forever</p>
+                            <ul class="list-unstyled mb-4">
+                                <li class="mb-2">1,000 requests per day</li>
+                                <li class="mb-2">Up to 5 API keys per organisation</li>
+                                <li class="mb-2">Full access to all endpoints</li>
+                                <li class="mb-2">Topic categorisation included</li>
+                                <li class="mb-2">Daily data refresh</li>
+                                <li class="mb-2">No credit card required</li>
+                            </ul>
+                            <a href="/register" class="btn btn-primary mt-auto">Get started free</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                            Pro
+                            <span class="badge bg-secondary">Coming soon</span>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <p class="display-6 fw-bold mb-0">TBD</p>
+                            <p class="text-muted mb-3">per month</p>
+                            <ul class="list-unstyled mb-4">
+                                <li class="mb-2">Higher daily request limits</li>
+                                <li class="mb-2">Priority support</li>
+                                <li class="mb-2">Everything in Free</li>
+                            </ul>
+                            <a href="/#waitlist" class="btn btn-outline-secondary mt-auto">Join the waitlist</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <hr class="mt-5">
+
+            <h2 class="fw-semibold">Frequently asked questions</h2>
+
+            <h3 class="fw-semibold mt-4">Will the free tier stay free?</h3>
+            <p>Yes. The free tier is a permanent offering, not a trial. 1,000 requests per day is available indefinitely with no credit card required.</p>
+
+            <h3 class="fw-semibold mt-4">Can I use the free tier commercially?</h3>
+            <p>Yes. The free tier can be used in commercial products and services, within the rate limits and the <a href="/terms">terms</a>.</p>
+
+            <h3 class="fw-semibold mt-4">What counts as a request?</h3>
+            <p>Each call to an API endpoint counts as one request against your daily limit. The limit resets at midnight UTC. Requests exceeding the limit receive a <code>429 Too Many Requests</code> response.</p>
+
+            <h3 class="fw-semibold mt-4">When will Pro launch?</h3>
+            <p>Pro is in development. Join the waitlist and we'll notify you when it's available.</p>
+
+            <h3 class="fw-semibold mt-4">Can I try the API before registering?</h3>
+            <p>Yes. The <a href="/docs">documentation</a> includes a shared public demo key (300 requests per day from each address, 10,000 across all users), so you can test the API and explore responses before creating an account.</p>
+
+            <hr>
+
+            <p class="mt-4">
+                <a href="/register" class="btn btn-primary me-2">Get started free</a>
+                <a href="/docs" class="btn btn-outline-secondary">View documentation</a>
+            </p>
+
+        </div>
+    </div>
+</div>

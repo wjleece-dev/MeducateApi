@@ -1,0 +1,16 @@
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /account
+Disallow: /api-key
+Disallow: /create-organisation
+Disallow: /verify
+Disallow: /auth/
+Disallow: /api-docs/
+Disallow: /swagger
+Disallow: /hangfire
+
+Sitemap: https://meducateapi.com/sitemap.xml

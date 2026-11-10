@@ -1,0 +1,121 @@
+@page "/blog/building-a-symptom-reference-tool"
+
+<SeoHead Title="Building a Symptom Reference Tool with a Medical API | Meducate API"
+         Description="A tutorial for building a symptom reference tool that explains what a symptom is and what's commonly associated with it, using the Meducate API's search and topic endpoints."
+         Canonical="https://meducateapi.com/blog/building-a-symptom-reference-tool"
+         OgType="article">
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BlogPosting",
+        "headline": "Building a Symptom Reference Tool with a Medical API",
+        "description": "A tutorial for building an informational symptom lookup tool using the Meducate API, and why it's a lookup tool and not a diagnostic checker.",
+        "url": "https://meducateapi.com/blog/building-a-symptom-reference-tool",
+        "image": "https://meducateapi.com/og-image.png",
+        "author": {
+            "@@type": "Organization",
+            "name": "Meducate API",
+            "url": "https://meducateapi.com"
+        },
+        "publisher": {
+            "@@type": "Organization",
+            "name": "Meducate API",
+            "url": "https://meducateapi.com"
+        },
+        "mainEntityOfPage": {
+            "@@type": "WebPage",
+            "@@id": "https://meducateapi.com/blog/building-a-symptom-reference-tool"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://meducateapi.com/"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "Blog",
+                "item": "https://meducateapi.com/blog"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 3,
+                "name": "Building a Symptom Reference Tool",
+                "item": "https://meducateapi.com/blog/building-a-symptom-reference-tool"
+            }
+        ]
+    }
+    </script>
+</SeoHead>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8">
+
+            <BreadcrumbNav PageName="Building a Symptom Reference Tool" ParentName="Blog" ParentHref="/blog" />
+
+            <h1 class="fw-bold mb-3">Building a Symptom Reference Tool with a Medical API</h1>
+            <p class="lead">A common request from users of any health app: "what does this symptom mean?" This walks through building a lookup tool that answers that: general information about a symptom, not an assessment of what's wrong with the person asking.</p>
+
+            <div class="alert alert-warning" role="alert">
+                <strong>Important:</strong> this is a <strong>reference lookup tool</strong>, not a diagnostic symptom checker. It looks up and explains a symptom by name. It does not take a user's reported symptoms and suggest what condition they have. That's a clinical function Meducate's <a href="/terms" class="alert-link">terms of service</a> explicitly don't permit. See our <a href="/blog/what-is-a-medical-data-api" class="alert-link">medical data API guide</a> for the full line between the two.
+            </div>
+
+            <hr>
+
+            <h2 class="fw-semibold">What we're building</h2>
+            <p>A page where a user types a symptom ("chest pain," "shortness of breath," "fatigue") and gets back a plain-language description: what the symptom is, what commonly causes it, and what general self-care or next steps are typically associated with it. That's it. No "here's what you probably have," no ranked list of likely diagnoses. Just an explanation of the symptom itself.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Step 1: search for the symptom</h2>
+            <p>Meducate's <code>/topics/search</code> endpoint takes a query and an optional <code>type</code> filter. Symptoms are their own topic type, so filtering to it keeps results relevant when a search term could match multiple kinds of topics.</p>
+
+            <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://api.meducateapi.com/api/v1/topics/search?query=chest+pain&amp;type=Symptom"</code></pre>
+
+            <p>The response is a paginated list of matching topics with a name, a short summary, and the category it belongs to. Enough to render a search results list or a set of suggestions as the user types.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Step 2: fetch the full topic</h2>
+            <p>Once the user picks a result, fetch the full topic by name for the structured detail view:</p>
+
+            <pre class="bg-light p-3 rounded"><code>curl -H "X-Api-Key: YOUR_API_KEY" \
+  "https://api.meducateapi.com/api/v1/topics/Chest%20Pain"</code></pre>
+
+            <p>A symptom topic carries three lists, <code>relatedSymptoms</code>, <code>associatedConditions</code>, and <code>management</code>, that map cleanly onto a reference page: how the symptom typically presents, what's commonly associated with or causes it, and general management or when-to-seek-care guidance. (The list names vary by topic type; see the <a href="/health-topics-api">health topics API reference</a>.) Render those three lists under their own headings and you have a page that reads like a proper reference entry, not a wall of API JSON.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Step 3: keep it a lookup, not an assessment</h2>
+            <p>The design choice that keeps this tool on the right side of the line: it only ever operates on <em>one symptom the user explicitly picked</em>. It doesn't collect multiple symptoms, weigh them against each other, or output "you might have X." A few things that would cross that line, worth avoiding on purpose:</p>
+            <ul>
+                <li>Letting a user select several symptoms and returning a ranked list of possible conditions</li>
+                <li>Any UI copy implying the tool is assessing <em>them</em>, rather than explaining a term they looked up</li>
+                <li>Surfacing a "likelihood" or "match score" against specific diagnoses</li>
+            </ul>
+            <p>A symptom glossary that happens to be searchable is a genuinely useful, low-risk thing to build. A symptom checker that infers diagnoses is a different, much heavier undertaking that needs clinical validation Meducate isn't built to provide.</p>
+
+            <hr>
+
+            <h2 class="fw-semibold">Getting started</h2>
+            <p>Meducate is free to use. <a href="/register">Register for an account</a> to get an API key with 1,000 requests per day, no credit card required. The <a href="/docs">documentation</a> covers the full endpoint reference and has runnable examples in curl, JavaScript, and Python.</p>
+
+            <p class="mt-4">
+                <a href="/register" class="btn btn-primary me-2">Get your free API key. 1,000 requests/day, no credit card required.</a>
+                <a href="/docs" class="btn btn-outline-secondary">View documentation</a>
+            </p>
+            <p class="text-muted mt-3">Further reading: <a href="/blog/what-is-a-medical-data-api">What is a medical data API?</a> · <a href="/use-cases">Use cases</a></p>
+
+        </div>
+    </div>
+</div>

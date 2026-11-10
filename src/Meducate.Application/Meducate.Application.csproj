@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+		<InternalsVisibleTo Include="Meducate.Infrastructure" />
+		<InternalsVisibleTo Include="Meducate.API" />
+		<InternalsVisibleTo Include="Meducate.Tests" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Meducate.Domain\Meducate.Domain.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
+		<PackageReference Include="Hangfire.Console" Version="1.4.3" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
+	</ItemGroup>
+</Project>

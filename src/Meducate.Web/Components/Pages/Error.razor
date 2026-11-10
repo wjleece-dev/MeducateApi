@@ -1,0 +1,36 @@
+@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Error - Meducate API</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <h1 class="display-1 fw-bold text-muted">500</h1>
+            <h3 class="mb-3">Something went wrong</h3>
+            <p class="text-muted mb-4">
+                An unexpected error occurred. Please try again later.
+            </p>
+
+            @if (ShowRequestId)
+            {
+                <p class="text-muted small mb-4">
+                    Request ID: <code>@RequestId</code>
+                </p>
+            }
+
+            <a href="/" class="btn btn-primary">Go to homepage</a>
+        </div>
+    </div>
+</div>
+
+@code{
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

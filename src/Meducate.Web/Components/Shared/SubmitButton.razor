@@ -1,0 +1,22 @@
+﻿
+<button type="submit" class="btn @Classes d-flex align-items-center justify-content-center" disabled="@IsLoading">
+    @if (!IsLoading)
+    {
+        @ChildContent
+    }
+    else
+    {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    }
+</button>
+
+@code {
+    [Parameter]
+    public string Classes { get; set; } = "btn-primary";
+
+    [Parameter, EditorRequired]
+    public bool IsLoading { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment? ChildContent { get; set; }
+}

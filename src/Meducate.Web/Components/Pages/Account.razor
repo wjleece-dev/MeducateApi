@@ -1,0 +1,173 @@
+@page "/account"
+@rendermode InteractiveServer
+@inject Meducate.Web.Services.ApiService Api
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IHttpContextAccessor HttpContextAccessor
+@inject Meducate.Web.Services.ToastService Toast
+
+@using Meducate.Web.Models
+
+<PageTitle>Account - Meducate API</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+
+            @if (_isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <h1 class="fw-bold mb-4">Account</h1>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Profile</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Email address</label>
+                            <p class="mb-0 fw-medium">@_userStatus?.Email</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Danger Zone</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Deleting your account will permanently remove all your data, including your organisation and API keys. This action cannot be undone.
+                        </p>
+                        <button type="button" class="btn btn-outline-danger" @onclick="ShowDeleteModal">
+                            Delete account
+                        </button>
+                    </div>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@if (_showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" @onkeydown="HandleKeyDown">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete account</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <strong>This action is permanent.</strong> All your data will be deleted and cannot be recovered.
+                    </div>
+                    <p>To confirm, type your email address below:</p>
+                    <input type="email" class="form-control" placeholder="@_userStatus?.Email" @bind="_confirmEmail" @bind:event="oninput" @ref="_deleteEmailInput" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button type="button" class="btn btn-danger" disabled="@(!CanDelete)" @onclick="ConfirmDelete">
+                        @if (_isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Delete my account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private UserStatusResult? _userStatus;
+    private bool _showDeleteModal;
+    private string? _confirmEmail;
+    private bool _isDeleting;
+    private ElementReference _deleteEmailInput;
+
+    private bool CanDelete => !string.IsNullOrWhiteSpace(_confirmEmail)
+        && _confirmEmail.Equals(_userStatus?.Email, StringComparison.OrdinalIgnoreCase)
+        && !_isDeleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hasCookie = HttpContextAccessor.HttpContext?.Request.Cookies.ContainsKey("meducateapi_auth") ?? false;
+        if (!hasCookie)
+        {
+            Nav.NavigateTo("/register?mode=signin", replace: true);
+            return;
+        }
+
+        _userStatus = await Api.GetUserStatusAsync();
+
+        if (_userStatus is null)
+        {
+            Nav.NavigateTo("/register?mode=signin", replace: true);
+            return;
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task ShowDeleteModal()
+    {
+        _showDeleteModal = true;
+        _confirmEmail = null;
+        await Task.Delay(50); // Wait for render
+        await _deleteEmailInput.FocusAsync();
+    }
+
+    private void CancelDelete()
+    {
+        _showDeleteModal = false;
+        _confirmEmail = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (!CanDelete)
+            return;
+
+        _isDeleting = true;
+
+        try
+        {
+            var response = await Api.DeleteAccountAsync();
+
+            if (response.IsSuccess)
+            {
+                Nav.NavigateTo("/auth/logout", forceLoad: true);
+            }
+            else
+            {
+                Toast.Error(response.Message ?? "Failed to delete account.");
+            }
+        }
+        catch
+        {
+            Toast.Error("Something went wrong while deleting your account.");
+        }
+        finally
+        {
+            _isDeleting = false;
+            _showDeleteModal = false;
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            CancelDelete();
+    }
+}

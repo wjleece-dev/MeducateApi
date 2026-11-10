@@ -1,0 +1,28 @@
+@* Centralises PageTitle, meta, canonical, OG, and Twitter tags.
+   Pass JSON-LD and any extra head elements via ChildContent. *@
+
+<PageTitle>@Title</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="@Description" />
+    <link rel="canonical" href="@Canonical" />
+    <meta property="og:title" content="@Title" />
+    <meta property="og:description" content="@Description" />
+    <meta property="og:url" content="@Canonical" />
+    <meta property="og:type" content="@OgType" />
+    <meta property="og:image" content="https://meducateapi.com/og-image.png" />
+    <meta property="og:site_name" content="Meducate API" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@Title" />
+    <meta name="twitter:description" content="@Description" />
+    <meta name="twitter:image" content="https://meducateapi.com/og-image.png" />
+    @ChildContent
+</HeadContent>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Description { get; set; } = "";
+    [Parameter, EditorRequired] public string Canonical { get; set; } = "";
+    [Parameter] public string OgType { get; set; } = "website";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

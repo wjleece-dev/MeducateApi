@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+	<PropertyGroup>
+		<UserSecretsId>2027b8c5-3086-4b32-8a14-51dbab8fa0ce</UserSecretsId>
+		<EnableBrowserLink>false</EnableBrowserLink>
+	</PropertyGroup>
+	<ItemGroup>
+		<InternalsVisibleTo Include="Meducate.Tests" />
+		<InternalsVisibleTo Include="Meducate.IntegrationTests" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Meducate.Domain\Meducate.Domain.csproj" />
+		<ProjectReference Include="..\Meducate.Application\Meducate.Application.csproj" />
+		<ProjectReference Include="..\Meducate.Infrastructure\Meducate.Infrastructure.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Hangfire" Version="1.8.25" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.14" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
+	</ItemGroup>
+</Project>
