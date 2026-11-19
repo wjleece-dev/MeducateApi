@@ -32,6 +32,8 @@ internal sealed partial class DataIntegrityCheckService(
         var validCategories = _llmProcessor.GetValidCategories();
         var failures = new List<string>();
         var warnings = new List<string>();
+        // Warnings that suggest wrong or copied content (as opposed to merely thin or empty topics) also send an alert.
+        var factualWarnings = new List<string>();
 
         // Global check: any topics with a missing or non-standard category
         var needingCategory = await _queryRepo.GetTopicsNeedingCategoryAsync(validCategories, ct);
@@ -123,6 +125,7 @@ internal sealed partial class DataIntegrityCheckService(
                 {
                     var msg = $"{topic.Name}: low keyword overlap with source ({score:P0}) — possible hallucination or stale content";
                     warnings.Add(msg);
+                    factualWarnings.Add(msg);
                     _logger.LogWarning("Data integrity [WARN] {Message}", msg);
                     console?.WriteLine($"  [WARN] {msg}");
                 }
@@ -134,6 +137,7 @@ internal sealed partial class DataIntegrityCheckService(
                 {
                     var msg = $"{topic.Name}: {copied} consecutive words follow the source verbatim — reword";
                     warnings.Add(msg);
+                    factualWarnings.Add(msg);
                     _logger.LogWarning("Data integrity [WARN] {Message}", msg);
                     console?.WriteLine($"  [WARN] {msg}");
                 }
@@ -146,12 +150,12 @@ internal sealed partial class DataIntegrityCheckService(
 
         console?.WriteLine($"Done: {failures.Count} failure(s), {warnings.Count} warning(s) in {batch.Count} topics checked.");
 
-        if (failures.Count > 0)
+        if (failures.Count > 0 || factualWarnings.Count > 0)
         {
             var alertEmail = _config["Admin:AlertEmail"];
             if (string.IsNullOrWhiteSpace(alertEmail))
             {
-                _logger.LogWarning("Data integrity failures found but Admin:AlertEmail is not configured — no alert sent");
+                _logger.LogWarning("Data integrity problems found but Admin:AlertEmail is not configured — no alert sent");
                 console?.WriteLine("[WARN] Admin:AlertEmail not configured — alert email not sent.");
             }
             else
@@ -163,7 +167,7 @@ internal sealed partial class DataIntegrityCheckService(
                     batch.Count,
                     batchIndex,
                     totalBatches,
-                    failures);
+                    [.. failures.Select(f => "FAIL: " + f), .. factualWarnings.Select(w => "CHECK: " + w)]);
             }
         }
 

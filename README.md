@@ -225,6 +225,10 @@ The code in this repository is released under the [MIT License](LICENSE). That c
 - Deeper drug coverage (individual drugs are only partly covered today)
 - Cross-reference multiple sources per topic (MedlinePlus + PubMed + WHO)
 
+**Trust and traceability**
+- Statement-level evidence: for each symptom, risk factor or treatment, the supporting source passage, source URL, retrieval date and verification status. This needs a schema change and a re-run over every topic, so it is planned rather than built
+- Independent accuracy review: the sample audit in [docs/ACCURACY.md](docs/ACCURACY.md) is a first step, not clinical review
+
 **API features**
 - Webhooks for topic update notifications
 - SDKs / client libraries

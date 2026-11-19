@@ -130,9 +130,11 @@ internal static class InternalEndpoints
                     try
                     {
                         var judgements = await llm.JudgeListItemsAsync(topic.RawSource, topic, ct);
-                        var outcome = ItemGrounding.Evaluate(topic, topic.RawSource, judgements);
+                        var pending = ItemGrounding.Evaluate(topic, topic.RawSource, judgements).RecheckItems;
+                        var strict = pending.Count > 0 ? await llm.JudgeQualifiedItemsAsync(topic.RawSource, topic, pending, ct) : null;
+                        var outcome = ItemGrounding.Evaluate(topic, topic.RawSource, judgements, strict);
                         edits.AddRange(outcome.Dropped.Select(d => new Meducate.Domain.Services.ItemEdit(topic.Name, d.Field, d.Item)));
-                        results.Add(new { topic.Name, judged = judgements?.Count ?? 0, dropped = outcome.Dropped, outcome.Rejected });
+                        results.Add(new { topic.Name, judged = judgements?.Count ?? 0, dropped = outcome.Dropped, outcome.Rejected, retained = outcome.RetainedItems });
                     }
                     catch (Meducate.Domain.Services.LlmBudgetExceededException)
                     {

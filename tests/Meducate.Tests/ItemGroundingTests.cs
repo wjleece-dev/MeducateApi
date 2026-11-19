@@ -131,4 +131,99 @@ public class ItemGroundingTests
         Assert.Equal(0, ItemGrounding.LongestVerbatimRun("Begin CPR only after the seizure ends", source));
         Assert.Equal(20, ItemGrounding.LongestVerbatimRun("Do not start CPR unless the seizure has clearly stopped and the person is not breathing or has no pulse", source));
     }
+
+    // Contradictions share almost every word with the source, so word overlap alone cannot catch them.
+    [Theory]
+    [InlineData("This drug increases blood pressure.", "Decreases blood pressure")]
+    [InlineData("This drug should be used with food.", "Should not be used with food")]
+    [InlineData("A rare adverse effect is rash.", "Common adverse effect is rash")]
+    [InlineData("The usual dose is 5 mg a day.", "Usual dose is 50 mg a day")]
+    public void AContradictedItem_IsQueuedForAStrictCheck_AndDroppedWhenThatCheckAgrees(string source, string item)
+    {
+        HealthTopic Build() => new() { Name = "X", Observations = [item, "Filler symptom one", "Filler symptom two"], Factors = ["F1", "F2"], Actions = ["A1", "A2"] };
+        var judge = new List<ItemJudgement> { No("observations", item) };
+
+        var first = ItemGrounding.Evaluate(Build(), source, judge);
+        Assert.Empty(first.Dropped);
+        Assert.Contains(first.RecheckItems, r => r.Item == item);
+
+        var confirmed = ItemGrounding.Apply(Build(), source, judge, [No("observations", item)]);
+        Assert.Contains(confirmed.Dropped, d => d.Item == item);
+
+        var cleared = ItemGrounding.Apply(Build(), source, judge, [Yes("observations", item)]);
+        Assert.Empty(cleared.Dropped);
+    }
+
+    [Fact]
+    public void AnItemThatSharesWordsWithTheSource_IsOnlyDroppedWhenTheStrictCheckAgrees()
+    {
+        HealthTopic Build() => new() { Name = "X", Observations = ["Fever and chills", "Pain", "Swelling"], Factors = ["F1", "F2"], Actions = ["A1", "A2"] };
+        var judge = new List<ItemJudgement> { No("observations", "Fever and chills") };
+
+        var first = ItemGrounding.Evaluate(Build(), Source, judge);
+        Assert.Empty(first.Dropped);
+        Assert.Single(first.RecheckItems);
+
+        Assert.Single(ItemGrounding.Apply(Build(), Source, judge, [No("observations", "Fever and chills")]).Dropped);
+        Assert.Empty(ItemGrounding.Apply(Build(), Source, judge, [Yes("observations", "Fever and chills")]).Dropped);
+    }
+
+    [Fact]
+    public void AGenericRiskFactorWhoseWordAppearsInTheSource_IsDroppedWhenBothChecksAgree()
+    {
+        // Real case from the accuracy audit: "Age" passes any word check, but the source never lists it as a risk.
+        const string source = "Cancer of the gallbladder is rare. It is more common in women and Native Americans.";
+        HealthTopic Build() => new() { Name = "Gallbladder Cancer", Observations = ["Jaundice", "Fever"], Factors = ["Gender (more common in women)", "Age"], Actions = ["Surgery", "Radiation"] };
+        var judge = new List<ItemJudgement> { No("factors", "Age") };
+
+        Assert.Single(ItemGrounding.Apply(Build(), source, judge, [No("factors", "Age")]).Dropped);
+    }
+
+    [Theory]
+    [InlineData("Should not be used", true)]
+    [InlineData("Rare complications", true)]
+    [InlineData("Decreases blood pressure", true)]
+    [InlineData("Dose of 5 mg", true)]
+    [InlineData("Fever and chills", false)]
+    [InlineData("Chest pain", false)]
+    public void HasQualifier_SpotsNegationDirectionFrequencyAndNumbers(string item, bool expected) =>
+        Assert.Equal(expected, ItemGrounding.HasQualifier(item));
+
+    [Fact]
+    public void AnUnsupportedItemThatCannotBeRemoved_IsReportedAsRetained_AndMarksTheTopicSuspect()
+    {
+        var topic = new HealthTopic { Name = "X", Observations = ["Hair loss"], Factors = ["Diabetes"], Actions = ["Antibiotics"] };
+
+        var outcome = ItemGrounding.Apply(topic, Source, [No("observations", "Hair loss")]);
+
+        Assert.Empty(outcome.Dropped);
+        Assert.Single(outcome.RetainedItems);
+        Assert.True(outcome.IsSuspect);
+        Assert.Equal(["Hair loss"], topic.Observations);
+    }
+
+    [Fact]
+    public void AJudgeThatRejectsAlmostEverything_MarksTheTopicSuspect_ButRemovesNothing()
+    {
+        var topic = Topic();
+        var outcome = ItemGrounding.Apply(topic, Source,
+        [
+            No("observations", "Fever and chills"), No("observations", "Pain and swelling"), No("observations", "Hair loss"),
+            No("factors", "Diabetes"), No("factors", "Genetic predisposition"),
+            No("actions", "Draining the abscess"), No("actions", "Antibiotics"),
+        ]);
+
+        Assert.Empty(outcome.Dropped);
+        Assert.True(outcome.IsSuspect);
+        Assert.NotEmpty(outcome.RetainedItems);
+    }
+
+    [Fact]
+    public void ACleanTopic_IsNotSuspect()
+    {
+        var outcome = ItemGrounding.Apply(Topic(), Source, [No("observations", "Hair loss")]);
+
+        Assert.Single(outcome.Dropped);
+        Assert.False(outcome.IsSuspect);
+    }
 }

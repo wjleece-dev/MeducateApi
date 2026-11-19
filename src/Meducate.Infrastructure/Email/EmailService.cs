@@ -240,7 +240,7 @@ internal sealed class EmailService(IResend resend, IMemoryCache cache, ILogger<E
                 <li>Warnings: {warningCount}</li>
             </ul>
 
-            <p><strong>Failures:</strong></p>
+            <p><strong>Details (FAIL = broken data, CHECK = content that may be wrong or copied):</strong></p>
             <ul>
                 {failureRows}
             </ul>

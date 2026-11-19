@@ -260,6 +260,34 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
             executionSettings: JsonResponseFormat
         );
 
+    private readonly KernelFunction _qualifierFunction = kernel.CreateFunctionFromPrompt(
+            """
+            You are a strict fact-checker for a medical education API. Below is a SOURCE TEXT and a numbered list
+            of items that were extracted from it for the topic "{{$topicName}}". An earlier check flagged these items
+            as possibly unsupported. Decide, for each item, whether the source states EXACTLY the same thing.
+
+            RULES:
+            - Compare meaning, not just words. An item is NOT supported if it reverses or changes any of:
+              negation (should / should not, can / cannot, avoid), direction (increases / decreases, raises / lowers,
+              high / low), frequency (rare / common / often / always), severity (mild / severe), a number, a dose,
+              a duration, an age or a condition ("only if", "except", "unless").
+            - An item is supported if the source says the same thing in different words.
+            - If the source does not address the item at all, it is not supported.
+            - Judge every id. Do not rewrite or merge items.
+
+            Return raw JSON only, no code fences, no explanation.
+            Schema: {"items":[{"id":0,"supported":true,"quote":"..."}]}
+
+            SOURCE TEXT:
+            {{$rawText}}
+
+            ITEMS:
+            {{$itemsJson}}
+            """,
+            functionName: "CheckQualifiedItems",
+            executionSettings: JsonResponseFormat
+        );
+
     private readonly KernelFunction _classifyFunction = kernel.CreateFunctionFromPrompt(
             """
             You are a medical terminology classifier. You will receive a list of health
@@ -767,13 +795,25 @@ internal sealed partial class SemanticKernelLLMProcessor(Kernel kernel, ILogger<
         items.AddRange((topic.Observations ?? []).Select(i => ("observations", i)));
         items.AddRange((topic.Factors ?? []).Select(i => ("factors", i)));
         items.AddRange((topic.Actions ?? []).Select(i => ("actions", i)));
+        return await JudgeAsync(_groundFunction, rawText, topic, items, ct, escalate);
+    }
+
+    public Task<IReadOnlyList<ItemJudgement>?> JudgeQualifiedItemsAsync(string rawText, HealthTopic topic, IReadOnlyList<ItemRef> items, CancellationToken ct = default, bool escalate = false)
+    {
+        ArgumentNullException.ThrowIfNull(topic);
+        return JudgeAsync(_qualifierFunction, rawText, topic, [.. items.Select(i => (i.Field, i.Item))], ct, escalate);
+    }
+
+    private async Task<IReadOnlyList<ItemJudgement>?> JudgeAsync(KernelFunction function, string rawText, HealthTopic topic,
+        List<(string Field, string Item)> items, CancellationToken ct, bool escalate)
+    {
         if (items.Count == 0 || string.IsNullOrWhiteSpace(rawText))
             return [];
 
         var itemsJson = JsonSerializer.Serialize(items.Select((x, id) => new { id, field = x.Field, text = x.Item }));
 
         var result = await _kernel.InvokeAsync(
-            _groundFunction,
+            function,
             Arguments(escalate, ("rawText", rawText), ("typeInstructions", GetTypeInstructions(topic.TopicType)),
                 ("topicName", topic.Name), ("itemsJson", itemsJson)),
             ct);

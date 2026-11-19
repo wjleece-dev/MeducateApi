@@ -343,6 +343,7 @@ public class TopicIngestionServiceTests
             Task.FromResult(ParseResult);
 
         public Task<IReadOnlyList<ItemJudgement>?> JudgeListItemsAsync(string rawText, HealthTopic topic, CancellationToken ct = default, bool escalate = false) => Task.FromResult<IReadOnlyList<ItemJudgement>?>(null);
+        public Task<IReadOnlyList<ItemJudgement>?> JudgeQualifiedItemsAsync(string rawText, HealthTopic topic, IReadOnlyList<ItemRef> items, CancellationToken ct = default, bool escalate = false) => Task.FromResult<IReadOnlyList<ItemJudgement>?>(null);
         public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default, bool escalate = false)
         {
             VerifyCalled = true;

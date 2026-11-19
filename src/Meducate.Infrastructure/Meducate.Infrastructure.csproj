@@ -17,5 +17,7 @@
 		<PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.81.0" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
 		<PackageReference Include="Resend" Version="0.24.0" />
+		<!-- Resend pulls WebUtilities 10.0.12, which has CVE-2026-114149 (denial of service); 10.0.15 is the patched version -->
+		<PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="10.0.15" />
 	</ItemGroup>
 </Project>

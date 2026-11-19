@@ -9,6 +9,9 @@ internal interface ILLMProcessor
     // Asks the model whether the source backs each observation/factor/action. Null when the reply is unusable
     // (callers then keep everything); budget and transport errors propagate.
     Task<IReadOnlyList<ItemJudgement>?> JudgeListItemsAsync(string rawText, HealthTopic topic, CancellationToken ct = default, bool escalate = false);
+    // Second, stricter look at items whose wording carries a negation, direction, frequency, severity or number
+    // (those can match the source word for word and still say the opposite). Null when the reply is unusable.
+    Task<IReadOnlyList<ItemJudgement>?> JudgeQualifiedItemsAsync(string rawText, HealthTopic topic, IReadOnlyList<ItemRef> items, CancellationToken ct = default, bool escalate = false);
     Task<Dictionary<string, string>> ClassifyTopicNamesAsync(IReadOnlyList<TopicClassifyInput> topics, CancellationToken ct = default);
     Task<Dictionary<string, string>> ClassifyTopicCategoriesAsync(IReadOnlyList<TopicCategoryInput> topics, CancellationToken ct = default);
     Task<BroaderNameResult> CompareBroaderNameAsync(string candidate, string existing, CancellationToken ct = default);
@@ -19,6 +22,8 @@ internal interface ILLMProcessor
 
 // Field is "observations", "factors" or "actions". Quote is the passage of the source the model says backs the item.
 internal sealed record ItemJudgement(string Field, string Item, bool Supported, string? Quote);
+
+internal sealed record ItemRef(string Field, string Item);
 
 internal sealed record BroaderNameResult(string PreferredName, bool ShouldReplace);
 

@@ -166,6 +166,8 @@ internal sealed class TopicRefreshService(
         // Parallelize LLM calls with bounded concurrency, then apply results sequentially.
         // Cancellations are captured as errors so completed work is not discarded.
         using var llmSemaphore = new SemaphoreSlim(3);
+        // Topics whose new extraction still contains unsupported items that could not be removed
+        var suspects = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
         var llmTasks = toReprocess.Select(async topic =>
         {
             if (string.IsNullOrWhiteSpace(topic.RawSource) || topic.RawSource.Length < TopicConstants.MinSourceLength)
@@ -190,13 +192,24 @@ internal sealed class TopicRefreshService(
                     await Task.Delay(LlmThrottle, ct);
                     structured = await _llmProcessor.VerifyHealthTopicAsync(topic.RawSource, structured, ct, escalate) ?? structured;
 
-                    // Last gate: drop list items the source does not back (quote-checked, see ItemGrounding)
+                    // Last gate: drop list items the source does not back (see ItemGrounding). Items that match the
+                    // source word for word but may say the opposite get a second, stricter check.
                     await Task.Delay(LlmThrottle, ct);
-                    var grounding = ItemGrounding.Apply(structured, topic.RawSource,
-                        await _llmProcessor.JudgeListItemsAsync(topic.RawSource, structured, ct, escalate));
-                    if (grounding.Dropped.Count > 0 || grounding.Rejected is not null)
+                    var judgements = await _llmProcessor.JudgeListItemsAsync(topic.RawSource, structured, ct, escalate);
+                    IReadOnlyList<ItemJudgement>? strict = null;
+                    var pending = ItemGrounding.Evaluate(structured, topic.RawSource, judgements).RecheckItems;
+                    if (pending.Count > 0)
+                    {
+                        await Task.Delay(LlmThrottle, ct);
+                        strict = await _llmProcessor.JudgeQualifiedItemsAsync(topic.RawSource, structured, pending, ct, escalate);
+                    }
+
+                    var grounding = ItemGrounding.Apply(structured, topic.RawSource, judgements, strict);
+                    if (grounding.Dropped.Count > 0 || grounding.IsSuspect)
                         _logger.LogInformation("Grounding '{Name}': dropped {Count} unsupported items{Rejected}",
                             topic.Name, grounding.Dropped.Count, grounding.Rejected is null ? "" : $" ({grounding.Rejected})");
+                    if (grounding.IsSuspect)
+                        suspects[topic.Name] = grounding.Rejected ?? $"{grounding.RetainedItems.Count} unsupported item(s) could not be removed";
                 }
 
                 var n = Interlocked.Increment(ref completedLlm);
@@ -255,14 +268,17 @@ internal sealed class TopicRefreshService(
 
             try
             {
-                // A weaker re-extraction must never replace what is already served; keep the stored topic and retry
-                if (TopicHelpers.IsRegression(topic, structured, topic.RawSource))
+                // A weaker re-extraction, or one that still holds unsupported items, must never replace what is
+                // already served; keep the stored topic and retry
+                var suspect = suspects.TryGetValue(topic.Name, out var suspectReason);
+                if (suspect || TopicHelpers.IsRegression(topic, structured, topic.RawSource))
                 {
                     topic.ReprocessAttempts++;
                     if (topic.ReprocessAttempts >= MaxReprocessAttempts)
                         topic.NeedsLlmReprocessing = false;
-                    _logger.LogWarning("Kept the stored version of '{Name}': the new extraction was worse (attempt {Attempts}/{Max})",
-                        topic.Name, topic.ReprocessAttempts, MaxReprocessAttempts);
+                    _logger.LogWarning("Kept the stored version of '{Name}': {Why} (attempt {Attempts}/{Max})",
+                        topic.Name, suspect ? $"the new extraction still had unsupported items ({suspectReason})" : "the new extraction was worse",
+                        topic.ReprocessAttempts, MaxReprocessAttempts);
                     console?.WriteLine($"  [{topic.Name}] New extraction was worse than the stored one - kept the stored version.");
                     continue;
                 }
