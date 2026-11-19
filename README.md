@@ -209,6 +209,8 @@ A [Postman collection](https://meducateapi.com/meducate-api.postman_collection.j
 
 Health information from MedlinePlus and PubMed, U.S. National Library of Medicine. ICD-11 codes and titles are © World Health Organization, used under the WHO ICD API terms of use. The topic text is rewritten and restructured from those sources by a language model, not copied; some phrases still follow the source wording closely (see each topic's `citations`). It has not been clinically reviewed. **This is not medical advice**: use it for education and information only, never for diagnosis or treatment decisions, and go to the cited source for anything that matters.
 
+A small sample audit of how faithful the lists are to their sources, with its method, results and limits, is in [docs/ACCURACY.md](docs/ACCURACY.md).
+
 About 870 topics are served, which is MedlinePlus's health-topic list (conditions, symptoms, procedures, tests) rather than all of MedlinePlus; individual drugs are only partly covered. A few overview topics (for example Anatomy) have empty lists because their source has no symptoms, risk factors or treatments to extract.
 
 ## License
