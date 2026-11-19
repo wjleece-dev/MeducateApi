@@ -88,7 +88,7 @@ All public API routes are versioned under `/api/v1` via `app.MapGroup("/api/v1")
 |---|---|---|
 | `GET` | `/api/v1/topics` | Paginated list. Params: `skip`, `take` (max 200), `type`. |
 | `GET` | `/api/v1/topics/search` | Name partial-match. Same pagination params + `type` filter. |
-| `GET` | `/api/v1/topics/{name}` | Single topic by exact name. |
+| `GET` | `/api/v1/topics/{name}` | Single topic by name (case-insensitive, apostrophes ignored: Crohn Disease = Crohn's Disease). |
 | `GET` | `/api/v1/topics/types` | Distinct topic types in the DB. |
 
 Response field names adapt to `TopicType` via `HealthTopicJsonConverter`. Each `TopicType` (Disease, Symptom, Drug, Procedure, Diagnostic Test, Vaccine, Anatomy, Nutrient, Mental Health, Lifestyle) gets its own field-name triplet — e.g. a Disease returns `symptoms`/`causes`/`treatments`, a Symptom returns `relatedSymptoms`/`associatedConditions`/`management`. `icd11Code`/`icd11Title` are constant field names regardless of type — null unless the topic is a diagnosable type with a confident WHO ICD-11 match (see "ICD-11 coding" below).

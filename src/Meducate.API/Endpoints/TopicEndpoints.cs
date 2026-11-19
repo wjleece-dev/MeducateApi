@@ -114,7 +114,7 @@ internal static class TopicEndpoints
             {
                 var similar = await repo.SearchAsync(name, 0, 5, null, null, ct);
                 return Results.Problem(
-                    detail: "Topic not found. Names must match exactly (case-insensitive); use /api/v1/topics/search?query=... to find one. "
+                    detail: "Topic not found. Names are matched case-insensitively and ignore apostrophes (Crohn's Disease and Crohn Disease are the same); use /api/v1/topics/search?query=... to find one. "
                         + "Coverage is MedlinePlus health topics (conditions, symptoms, procedures, tests), with only a limited number of individual drugs.",
                     title: "Not Found",
                     statusCode: StatusCodes.Status404NotFound,

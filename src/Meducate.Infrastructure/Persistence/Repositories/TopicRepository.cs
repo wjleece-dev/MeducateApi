@@ -117,6 +117,19 @@ internal sealed class TopicRepository(MeducateDbContext context, IMemoryCache ca
         var result = await CategorizedQuery(context.HealthTopics)
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Name, name), ct);
 
+        // Eponyms are inconsistent in the source ("Crohn's Disease" but "Cushing Syndrome"), so also match ignoring
+        // apostrophes and the possessive "'s": "Crohn Disease", "Crohns Disease" and "Cushing's Syndrome" all resolve.
+        if (result is null)
+        {
+            var lower = name.Trim().ToLowerInvariant().Replace('’', '\'');
+            var withoutApostrophes = lower.Replace("'", "");
+            var withoutPossessive = lower.Replace("'s", "").Replace("'", "");
+            result = await CategorizedQuery(context.HealthTopics)
+                .FirstOrDefaultAsync(c =>
+                    c.Name.ToLower().Replace("’", "'").Replace("'", "") == withoutApostrophes
+                    || c.Name.ToLower().Replace("’", "'").Replace("'s", "").Replace("'", "") == withoutPossessive, ct);
+        }
+
         // Cache hits for 10 min, misses for 2 min to avoid repeated DB lookups
         var duration = result is not null ? CacheDuration : NegativeCacheDuration;
         CacheSet(cacheKey, (object?)result ?? NegativeCacheSentinel, duration);

@@ -162,6 +162,22 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
     }
 
     [Theory]
+    [InlineData("Asthma%27s")]    // possessive form of a name that has none
+    [InlineData("Asth%27ma")]     // stray apostrophe
+    [InlineData("asthma")]        // case
+    public async Task TopicNames_MatchIgnoringApostrophesAndCase(string requested)
+    {
+        var client = NewClient(factory);
+        client.DefaultRequestHeaders.Add("X-Api-Key", ApiConstants.DemoRawKey);
+
+        var response = await client.GetAsync("/api/v1/topics/" + requested);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Asthma", doc.RootElement.GetProperty("name").GetString());
+    }
+
+    [Theory]
     [InlineData("/api/v1/topics/No%2FSuch%20Topic")]
     [InlineData("/api/v1/topics/No/Such%20Topic")]
     public async Task TopicNamesWithASlash_ReachTheTopicLookup(string path)
