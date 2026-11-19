@@ -106,6 +106,8 @@ internal sealed class TopicRefreshService(
             var newRawSource = TopicHelpers.BuildMergedRawSource(results);
 
             var newHash = ContentHasher.GetSourceHash(results, newRawSource);
+            if (TopicHelpers.MergeLinks(results) is { } sourceLinks)
+                topic.SourceLinks = sourceLinks;
 
             if (!string.Equals(topic.SourceHash, newHash, StringComparison.Ordinal))
             {
@@ -205,6 +207,7 @@ internal sealed class TopicRefreshService(
                     }
 
                     var grounding = ItemGrounding.Apply(structured, topic.RawSource, judgements, strict);
+                    structured.Evidence = ItemGrounding.BuildEvidence(structured, topic.RawSource, judgements, strict, topic.SourceLinks);
                     if (grounding.Dropped.Count > 0 || grounding.IsSuspect)
                         _logger.LogInformation("Grounding '{Name}': dropped {Count} unsupported items{Rejected}",
                             topic.Name, grounding.Dropped.Count, grounding.Rejected is null ? "" : $" ({grounding.Rejected})");
@@ -302,6 +305,7 @@ internal sealed class TopicRefreshService(
                 topic.Observations = structured.Observations;
                 topic.Factors = structured.Factors;
                 topic.Actions = structured.Actions;
+                topic.Evidence = structured.Evidence;
                 topic.Citations = structured.Citations;
                 // Preserve existing Category — ParseHealthTopicAsync always returns null
                 // for Category; it gets classified separately in Phase 3

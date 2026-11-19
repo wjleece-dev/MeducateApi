@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Meducate.Application.Helpers;
+using Meducate.Domain.Entities;
 using Meducate.Domain.Services;
 using Microsoft.Extensions.Logging;
 
@@ -50,13 +51,14 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
             // Fetch encyclopedia first — if available, skip the portal page entirely.
             // Portal pages are mostly navigation chrome and link lists; the XML summary
             // is cleaner and the encyclopedia covers the clinical detail.
-            var encyclopediaText = await FetchFirstEncyclopediaArticleAsync(match.EncyclopediaUrls, match.EncyclopediaTitles, ct);
+            var (encyclopediaText, usedUrls) = await FetchFirstEncyclopediaArticleAsync(match.EncyclopediaUrls, match.EncyclopediaTitles, ct);
             string? portalText = null;
             if (string.IsNullOrWhiteSpace(encyclopediaText))
                 portalText = await FetchPageTextAsync(match.Url, MaxPortalPageChars, ct);
             var rawText = BuildRawText(match, portalText, encyclopediaText);
 
-            return new RawTopicData(topicName, rawText, SourceName, match.Groups, ContentHasher.ComputeHash(rawText));
+            return new RawTopicData(topicName, rawText, SourceName, match.Groups, ContentHasher.ComputeHash(rawText),
+                BuildLinks(match, usedUrls));
         }
         catch (Exception ex)
         {
@@ -225,8 +227,28 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
         return topics;
     }
 
-    private async Task<string?> FetchFirstEncyclopediaArticleAsync(List<string> urls, Dictionary<string, string>? titles, CancellationToken ct)
+    public async Task<IReadOnlyList<SourceLink>> GetSourceLinksAsync(string topicName, CancellationToken ct = default)
     {
+        var topics = await GetOrLoadTopicsAsync(ct);
+        var match = topics.FirstOrDefault(t =>
+            string.Equals(t.Title, topicName, StringComparison.OrdinalIgnoreCase)
+            || t.AlsoCalled.Any(a => string.Equals(a, topicName, StringComparison.OrdinalIgnoreCase)));
+        return match is null ? [] : BuildLinks(match, match.EncyclopediaUrls);
+    }
+
+    private static List<SourceLink> BuildLinks(ParsedTopic topic, IEnumerable<string> encyclopediaUrls)
+    {
+        var links = new List<SourceLink>();
+        if (!string.IsNullOrWhiteSpace(topic.Url))
+            links.Add(new SourceLink("MedlinePlus topic page", topic.Url));
+        foreach (var url in encyclopediaUrls.Distinct())
+            links.Add(new SourceLink(topic.EncyclopediaTitles is not null && topic.EncyclopediaTitles.TryGetValue(url, out var title) ? title : "Encyclopedia article", url));
+        return links;
+    }
+
+    private async Task<(string? Text, List<string> Urls)> FetchFirstEncyclopediaArticleAsync(List<string> urls, Dictionary<string, string>? titles, CancellationToken ct)
+    {
+        var used = new List<string>();
         var parts = new List<string>();
         foreach (var url in urls)
         {
@@ -242,9 +264,10 @@ internal sealed partial class MedlinePlusDataProvider(HttpClient httpClient, ILo
                     : "Encyclopedia Article";
                 var heading = titles is not null && titles.TryGetValue(url, out var title) ? $"{label}: {title}" : label;
                 parts.Add($"[{heading}]\n{text}");
+                used.Add(url);
             }
         }
-        return parts.Count > 0 ? string.Join("\n\n---\n\n", parts) : null;
+        return (parts.Count > 0 ? string.Join("\n\n---\n\n", parts) : null, used);
     }
 
     private async Task<string?> FetchPageTextAsync(string? url, int maxChars, CancellationToken ct,

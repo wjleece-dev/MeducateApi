@@ -226,4 +226,81 @@ public class ItemGroundingTests
         Assert.Single(outcome.Dropped);
         Assert.False(outcome.IsSuspect);
     }
+
+    private const string Encyclopedia =
+        "[MedlinePlus Groups: Blood] --- [MedlinePlus] [Source: NHLBI] Anemia is a condition. --- " +
+        "[Encyclopedia Article: Anemia] Symptoms include fatigue, pale skin and shortness of breath. Treatment depends on the cause.";
+
+    private static HealthTopic AnemiaTopic() => new()
+    {
+        Name = "Anemia",
+        Observations = ["Fatigue", "Pale skin", "Dizziness"],
+        Factors = ["Iron deficiency"],
+        Actions = ["Treatment depends on the cause"],
+    };
+
+    [Fact]
+    public void BuildEvidence_RecordsAQuoteOnlyWhenItIsFoundWordForWordInTheSource()
+    {
+        SourceLink[] links = [new("MedlinePlus topic page", "https://medlineplus.gov/anemia.html"), new("Anemia", "https://medlineplus.gov/ency/article/000560.htm")];
+        var judge = new List<ItemJudgement>
+        {
+            Yes("observations", "Fatigue") with { Quote = "Symptoms include fatigue, pale skin and shortness of breath" },
+            Yes("observations", "Pale skin") with { Quote = "tired and pale looking skin" },   // loose wording: not in the source
+            Yes("observations", "Dizziness") with { Quote = null },
+        };
+
+        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, null, links);
+
+        var verbatim = Assert.Single(evidence, e => e.Item == "Fatigue");
+        Assert.Equal("verbatim", verbatim.Match);
+        Assert.Equal("Symptoms include fatigue, pale skin and shortness of breath", verbatim.Quote);
+        Assert.Equal("Encyclopedia article: Anemia", verbatim.Section);
+        Assert.Equal("https://medlineplus.gov/ency/article/000560.htm", verbatim.Url);
+
+        // A quote that cannot be found is never shown as evidence.
+        var loose = Assert.Single(evidence, e => e.Item == "Pale skin");
+        Assert.Equal("judged", loose.Match);
+        Assert.Null(loose.Quote);
+        Assert.Equal("judged", Assert.Single(evidence, e => e.Item == "Dizziness").Match);
+    }
+
+    [Fact]
+    public void BuildEvidence_SkipsItemsNobodyApproved_AndItemsBeingRemoved()
+    {
+        var judge = new List<ItemJudgement>
+        {
+            Yes("observations", "Fatigue") with { Quote = "Symptoms include fatigue" },
+            No("observations", "Pale skin"),
+            Yes("observations", "Dizziness") with { Quote = "Symptoms include fatigue" },
+        };
+        var dropped = new List<GroundingDrop> { new("observations", "Dizziness", "removed") };
+
+        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, null, null, dropped);
+
+        Assert.Equal(["Fatigue"], evidence.Select(e => e.Item).ToArray());
+    }
+
+    [Fact]
+    public void BuildEvidence_UsesTheStrictChecksApprovalWhenTheFirstCheckDoubtedTheItem()
+    {
+        var judge = new List<ItemJudgement> { No("observations", "Fatigue") };
+        var strict = new List<ItemJudgement> { Yes("observations", "Fatigue") with { Quote = "Symptoms include fatigue" } };
+
+        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, strict);
+
+        Assert.Equal("verbatim", Assert.Single(evidence).Match);
+    }
+
+    [Fact]
+    public void MergeLinks_CombinesProvidersAndDropsDuplicates()
+    {
+        var a = new RawTopicData("T", "x", "MedlinePlus", Links: [new("MedlinePlus topic page", "https://a"), new("Anemia", "https://b")]);
+        var b = new RawTopicData("T", "y", "PubMed", Links: [new("Anemia", "https://b")]);
+
+        var merged = TopicHelpers.MergeLinks([a, b]);
+
+        Assert.Equal(["https://a", "https://b"], merged!.Select(l => l.Url).ToArray());
+        Assert.Null(TopicHelpers.MergeLinks([new RawTopicData("T", "x", "PubMed")]));
+    }
 }

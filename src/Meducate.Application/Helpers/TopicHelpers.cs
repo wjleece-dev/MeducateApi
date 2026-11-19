@@ -9,6 +9,13 @@ internal static class TopicHelpers
     internal const int MaxCharsPerSource = 15_000;
     internal const int MinSummaryLength = 80;
 
+    // The pages every provider's text for a topic came from, without duplicates; null when none are known.
+    internal static List<SourceLink>? MergeLinks(IEnumerable<RawTopicData> sources)
+    {
+        var links = sources.SelectMany(s => s.Links ?? []).DistinctBy(l => l.Url).ToList();
+        return links.Count > 0 ? links : null;
+    }
+
     internal static string BuildMergedRawSource(IEnumerable<RawTopicData> sources)
     {
         var parts = new List<string>();

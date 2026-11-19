@@ -219,6 +219,7 @@ internal sealed class TopicIngestionService(
                     }
 
                     var grounding = ItemGrounding.Apply(structured, mergedRawSource, judgements, strict);
+                    structured.Evidence = ItemGrounding.BuildEvidence(structured, mergedRawSource, judgements, strict, TopicHelpers.MergeLinks(group));
                     if (grounding.Dropped.Count > 0 || grounding.IsSuspect)
                         _logger.LogInformation("Grounding '{Name}': dropped {Count} unsupported items{Rejected}",
                             group.Key, grounding.Dropped.Count, grounding.Rejected is null ? "" : $" ({grounding.Rejected})");
@@ -358,6 +359,7 @@ internal sealed class TopicIngestionService(
                 }
 
                 structured.RawSource = mergedRawSource;
+                structured.SourceLinks = TopicHelpers.MergeLinks(group);
                 structured.SourceHash = ContentHasher.GetSourceHash(group, mergedRawSource);
                 structured.LastSourceRefresh = DateTime.UtcNow;
                 structured.TopicType = topicType;

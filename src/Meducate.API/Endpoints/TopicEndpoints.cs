@@ -72,7 +72,7 @@ internal static class TopicEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithTags("Topics");
 
-        app.MapGet("/topics/icd11/{code}", [RequiresApiKey] async (string code, ITopicRepository repo, CancellationToken ct) =>
+        app.MapGet("/topics/icd11/{code}", [RequiresApiKey] async (string code, string? include, ITopicRepository repo, Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions> json, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(code) || code.Length > ApiConstants.MaxQueryLength)
                 return Results.Problem(
@@ -88,7 +88,9 @@ internal static class TopicEndpoints
                     title: "Not Found",
                     statusCode: StatusCodes.Status404NotFound);
 
-            return Results.Ok(topic);
+            return TopicEvidenceView.Requested(include)
+                ? Results.Ok(TopicEvidenceView.Build(topic, json.Value.SerializerOptions))
+                : Results.Ok(topic);
         })
         .WithName("GetTopicByIcd11Code")
         .WithSummary("Get a topic by its ICD-11 code")
@@ -99,7 +101,7 @@ internal static class TopicEndpoints
         .WithTags("Topics");
 
         // Catch-all so names containing a slash ("HIV/AIDS") resolve whether the client sends "/" or "%2F".
-        app.MapGet("/topics/{**name}", [RequiresApiKey] async (string name, ITopicRepository repo, CancellationToken ct) =>
+        app.MapGet("/topics/{**name}", [RequiresApiKey] async (string name, string? include, ITopicRepository repo, Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions> json, CancellationToken ct) =>
         {
             name = name.Replace("%2F", "/", StringComparison.OrdinalIgnoreCase);
             if (string.IsNullOrWhiteSpace(name) || name.Length > ApiConstants.MaxQueryLength)
@@ -121,7 +123,9 @@ internal static class TopicEndpoints
                     extensions: new Dictionary<string, object?> { ["suggestions"] = similar.Select(s => s.Name).ToArray() });
             }
 
-            return Results.Ok(topic);
+            return TopicEvidenceView.Requested(include)
+                ? Results.Ok(TopicEvidenceView.Build(topic, json.Value.SerializerOptions))
+                : Results.Ok(topic);
         })
         .WithName("GetTopicByName")
         .WithSummary("Get a topic by name")

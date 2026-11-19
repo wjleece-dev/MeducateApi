@@ -6,7 +6,7 @@ namespace Meducate.API.Infrastructure;
 
 internal sealed class HealthTopicJsonConverter : JsonConverter<HealthTopic>
 {
-    private static (string ObservationsKey, string FactorsKey, string ActionsKey) GetFieldNames(string? topicType)
+    internal static (string ObservationsKey, string FactorsKey, string ActionsKey) GetFieldNames(string? topicType)
     {
         return topicType switch
         {

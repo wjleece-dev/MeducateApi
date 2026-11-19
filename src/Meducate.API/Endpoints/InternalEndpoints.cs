@@ -107,7 +107,7 @@ internal static class InternalEndpoints
         // reviewed before anything is removed. Stops cleanly if the daily LLM budget runs out.
         internalRoutes.MapPost("/internal/topics/ground",
             async (HttpContext http, ITopicQueryRepository queryRepo, ITopicWriteRepository writeRepo, Meducate.Domain.Services.ILLMProcessor llm, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct,
-                int skip = 0, int count = 10, string? name = null, bool apply = false) =>
+                int skip = 0, int count = 10, string? name = null, bool apply = false, bool evidence = false) =>
             {
                 var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
                 var authError = CheckToken(http, config, logger, "ground");
@@ -121,6 +121,7 @@ internal static class InternalEndpoints
 
                 var results = new List<object>();
                 var edits = new List<Meducate.Domain.Services.ItemEdit>();
+                var evidenceByTopic = new Dictionary<string, List<ItemEvidence>>(StringComparer.Ordinal);
                 var stoppedByBudget = false;
                 foreach (var topic in topics)
                 {
@@ -134,6 +135,8 @@ internal static class InternalEndpoints
                         var strict = pending.Count > 0 ? await llm.JudgeQualifiedItemsAsync(topic.RawSource, topic, pending, ct) : null;
                         var outcome = ItemGrounding.Evaluate(topic, topic.RawSource, judgements, strict);
                         edits.AddRange(outcome.Dropped.Select(d => new Meducate.Domain.Services.ItemEdit(topic.Name, d.Field, d.Item)));
+                        if (evidence && judgements is { Count: > 0 })
+                            evidenceByTopic[topic.Name] = ItemGrounding.BuildEvidence(topic, topic.RawSource, judgements, strict, topic.SourceLinks, outcome.Dropped);
                         results.Add(new { topic.Name, judged = judgements?.Count ?? 0, dropped = outcome.Dropped, outcome.Rejected, retained = outcome.RetainedItems });
                     }
                     catch (Meducate.Domain.Services.LlmBudgetExceededException)
@@ -143,9 +146,53 @@ internal static class InternalEndpoints
                     }
                 }
 
+                // Evidence is saved before any removals so the two never disagree about which items exist.
+                if (evidenceByTopic.Count > 0)
+                {
+                    var tracked = await queryRepo.GetByNamesTrackedAsync(evidenceByTopic.Keys, ct);
+                    foreach (var t in tracked)
+                        t.Evidence = evidenceByTopic[t.Name];
+                    await writeRepo.SaveChangesAsync(ct);
+                }
+
                 (int Applied, int NotFound)? applied = apply && edits.Count > 0 ? await writeRepo.EditListItemsAsync(edits, ct) : null;
                 logger.LogInformation("Internal: grounding checked {Topics} topics, {Drops} unsupported items, applied={Applied}", results.Count, edits.Count, apply);
                 return Results.Ok(new { checkedTopics = results.Count, unsupportedItems = edits.Count, applied = applied?.Applied, stoppedByBudget, results });
+            });
+        // Fills in the pages each stored topic's source came from, without fetching them and without any LLM calls.
+        internalRoutes.MapPost("/internal/topics/source-links",
+            async (HttpContext http, ITopicQueryRepository queryRepo, ITopicWriteRepository writeRepo, IEnumerable<Meducate.Domain.Services.IMedicalDataProvider> providers, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct,
+                int skip = 0, int count = 50) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "source-links");
+                if (authError is not null) return authError;
+
+                var batch = await queryRepo.GetServedTopicBatchAsync(Math.Max(0, skip), Math.Clamp(count, 1, 100), ct);
+                var tracked = await queryRepo.GetByNamesTrackedAsync(batch.Select(t => t.Name).ToList(), ct);
+                var updated = 0;
+                foreach (var topic in tracked)
+                {
+                    var found = new List<SourceLink>();
+                    foreach (var provider in providers)
+                        found.AddRange(await provider.GetSourceLinksAsync(topic.OriginalName ?? topic.Name, ct));
+
+                    // Keep the topic page, and only the encyclopedia articles whose heading is in the stored source text.
+                    var raw = topic.RawSource ?? "";
+                    var links = found
+                        .Where(l => l.Title == "MedlinePlus topic page" || raw.Contains($": {l.Title}]", StringComparison.Ordinal))
+                        .DistinctBy(l => l.Url)
+                        .ToList();
+                    if (links.Count == 0)
+                        continue;
+
+                    topic.SourceLinks = links;
+                    updated++;
+                }
+
+                await writeRepo.SaveChangesAsync(ct);
+                logger.LogInformation("Internal: source links set on {Updated} of {Count} topics (skip {Skip})", updated, tracked.Count, skip);
+                return Results.Ok(new { checkedTopics = tracked.Count, updated });
             });
         internalRoutes.MapGet("/internal/seen",
             async (HttpContext http, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, string name, CancellationToken ct) =>

@@ -17,7 +17,7 @@ namespace Meducate.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -122,6 +122,9 @@ namespace Meducate.Infrastructure.Migrations
                     b.PrimitiveCollection<string>("Citations")
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("Evidence")
+                        .HasColumnType("jsonb");
+
                     b.PrimitiveCollection<string>("Factors")
                         .HasColumnType("jsonb");
 
@@ -162,6 +165,9 @@ namespace Meducate.Infrastructure.Migrations
 
                     b.Property<string>("SourceHash")
                         .HasColumnType("text");
+
+                    b.Property<string>("SourceLinks")
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("Summary")
                         .HasColumnType("text");

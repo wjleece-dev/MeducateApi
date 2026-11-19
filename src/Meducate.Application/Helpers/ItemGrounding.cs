@@ -148,6 +148,103 @@ internal static partial class ItemGrounding
         return new GroundingOutcome(dropped, null, pending, retained);
     }
 
+    // Records, for every item that stays in the topic, the passage of the source the model said backs it. A passage
+    // counts as verbatim only when it is found word for word in the source; otherwise the item is marked as judged
+    // and no quote is kept, so a loosely worded or invented quote is never shown as evidence.
+    internal static List<ItemEvidence> BuildEvidence(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements,
+        IReadOnlyList<ItemJudgement>? strict = null, IReadOnlyList<SourceLink>? links = null, IReadOnlyList<GroundingDrop>? excluding = null)
+    {
+        var evidence = new List<ItemEvidence>();
+        if (judgements is not { Count: > 0 } || string.IsNullOrWhiteSpace(rawText))
+            return evidence;
+
+        var sections = SplitSections(rawText);
+        var whole = Collapse(rawText);
+        var lists = new (string Field, List<string>? Items)[]
+        {
+            ("observations", topic.Observations), ("factors", topic.Factors), ("actions", topic.Actions),
+        };
+
+        foreach (var (field, items) in lists)
+        {
+            foreach (var item in items ?? [])
+            {
+                if (excluding?.Any(d => d.Field == field && string.Equals(d.Item, item, StringComparison.OrdinalIgnoreCase)) == true)
+                    continue;
+
+                var verdict = Supporting(judgements, field, item) ?? Supporting(strict, field, item);
+                if (verdict is null)
+                    continue;
+
+                var quote = verdict.Quote?.Trim();
+                var squashed = quote is null ? "" : Collapse(quote);
+                if (squashed.Length >= 12 && whole.Contains(squashed, StringComparison.Ordinal))
+                {
+                    var section = sections.FirstOrDefault(s => s.Text.Contains(squashed, StringComparison.Ordinal));
+                    var url = section is null ? null : links?.FirstOrDefault(l => l.Title == section.LinkTitle)?.Url;
+                    evidence.Add(new ItemEvidence(field, item, quote!.Length > 300 ? quote[..300] : quote, "verbatim", section?.Label, url));
+                }
+                else
+                {
+                    evidence.Add(new ItemEvidence(field, item, null, "judged"));
+                }
+            }
+        }
+
+        return evidence;
+    }
+
+    private static ItemJudgement? Supporting(IReadOnlyList<ItemJudgement>? judgements, string field, string item) =>
+        judgements?.FirstOrDefault(j => j.Supported && j.Field == field && string.Equals(j.Item, item, StringComparison.OrdinalIgnoreCase));
+
+    private sealed record Section(string Label, string LinkTitle, string Text);
+
+    // The raw source is several pages joined together, each starting with a bracketed heading.
+    private static List<Section> SplitSections(string rawText)
+    {
+        var sections = new List<Section>();
+        foreach (var part in SectionStart().Split(rawText))
+        {
+            if (string.IsNullOrWhiteSpace(part))
+                continue;
+
+            var heading = Regex.Match(part, @"^\[([^\]]*)\]").Groups[1].Value;
+            string label, linkTitle;
+            if (heading.StartsWith("Encyclopedia Article:", StringComparison.Ordinal))
+            {
+                linkTitle = heading["Encyclopedia Article:".Length..].Trim();
+                label = "Encyclopedia article: " + linkTitle;
+            }
+            else if (heading.StartsWith("Patient Instructions:", StringComparison.Ordinal))
+            {
+                linkTitle = heading["Patient Instructions:".Length..].Trim();
+                label = "Patient instructions: " + linkTitle;
+            }
+            else if (heading.StartsWith("PubMed", StringComparison.Ordinal))
+            {
+                linkTitle = "PubMed";
+                label = "PubMed";
+            }
+            else
+            {
+                linkTitle = "MedlinePlus topic page";
+                label = "MedlinePlus topic summary";
+            }
+
+            sections.Add(new Section(label, linkTitle, Collapse(part)));
+        }
+
+        return sections;
+    }
+
+    [GeneratedRegex(@"(?=\[(?:Encyclopedia Article|Patient Instructions|MedlinePlus|PubMed)[^\]]*\])")]
+    private static partial Regex SectionStart();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
+
+    private static string Collapse(string text) => Whitespace().Replace(Normalise(text), " ").Trim();
+
     // True when the item carries a word that can reverse its meaning without changing the words around it.
     internal static bool HasQualifier(string item)
     {

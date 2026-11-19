@@ -27,6 +27,7 @@ MeducateAPI automatically discovers and aggregates medical topics from authorita
 - **Rate limiting**: two-tier system: 60 req/min per key + configurable daily limits with 80% usage alerts
 - **Automated topic discovery**: daily Hangfire jobs fetch new topics from MedlinePlus at 2 AM UTC
 - **Automated topic refresh**: existing topics re-processed daily at 3 AM UTC for accuracy
+- **Evidence per item**: `?include=evidence` on a single-topic request adds `source` (the MedlinePlus pages the text came from and when it was last fetched) and `evidence` (for each list item the checker approved: the passage, whether it was found word for word in the source, and the page it came from). Items the checker could not tie to a passage are marked `judged` and carry no quote
 - **Source grounding**: before a topic is saved, each list item is checked against the source text (a model judgement plus a word-overlap check, which must both say "unsupported") and removed if the source does not back it. It is a safety net, not a guarantee
 - **No regressions on refresh**: a re-extraction that fails a quality check the stored topic passes, or empties a list the stored topic had, is discarded and the stored version stays live
 - **Nightly drift detection**: a rotating batch of live topics is re-checked against their original source text each night; low keyword overlap flags likely hallucination or staleness, and structural failures (missing fields, invalid categories) trigger an email alert
@@ -123,7 +124,7 @@ graph LR
 |---|---|---|
 | `GET` | `/api/v1/topics` | List all topics (paginated, filterable by type and category) |
 | `GET` | `/api/v1/topics/search` | Search topics by name (same type and category filters) |
-| `GET` | `/api/v1/topics/{name}` | Get a single topic by exact name |
+| `GET` | `/api/v1/topics/{name}` | Get a single topic by name (case-insensitive, apostrophes ignored). Add `?include=evidence` for its source pages and, per list item, the supporting passage |
 | `GET` | `/api/v1/topics/icd11/{code}` | Get the topic carrying a WHO ICD-11 code |
 | `GET` | `/api/v1/topics/types` | List available topic types, with counts |
 | `GET` | `/api/v1/topics/categories` | List medical categories, with counts |
@@ -228,7 +229,7 @@ The code in this repository is released under the [MIT License](LICENSE). That c
 - Cross-reference multiple sources per topic (MedlinePlus + PubMed + WHO)
 
 **Trust and traceability**
-- Statement-level evidence: for each symptom, risk factor or treatment, the supporting source passage, source URL, retrieval date and verification status. This needs a schema change and a re-run over every topic, so it is planned rather than built
+- Evidence for every statement: `?include=evidence` covers the items the checker approved with a located passage; the aim is a verbatim passage for every item, and a clinician-reviewed sample
 - Independent accuracy review: the sample audit in [docs/ACCURACY.md](docs/ACCURACY.md) is a first step, not clinical review
 
 **API features**

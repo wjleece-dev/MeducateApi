@@ -49,4 +49,12 @@ internal sealed class HealthTopic
 
     [JsonIgnore]
     public int ReprocessAttempts { get; set; }
+
+    // Pages the stored source text came from. Shown through ?include=evidence, not in the default response.
+    [JsonIgnore]
+    public List<SourceLink>? SourceLinks { get; set; }
+
+    // Per-item supporting passages recorded by the grounding check. Shown through ?include=evidence.
+    [JsonIgnore]
+    public List<ItemEvidence>? Evidence { get; set; }
 }

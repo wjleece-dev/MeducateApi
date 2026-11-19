@@ -38,6 +38,7 @@ Four of the 30 topics (13%) had at least one sampled item that was not fully sup
 
 - Any item the first model check doubts, whose words appear in the source, now gets a second, stricter check (negation, direction, frequency, severity, numbers, and whether the source states it at all). Both must agree before the item is removed.
 - An unsupported item that cannot be removed (it is the last in its list, or the checker rejected almost everything) now stops the topic being published, or replaces the stored version.
+- Each topic now records the passages the checker used, and `?include=evidence` exposes them with the source pages and fetch date.
 - The nightly integrity check now sends an email for content warnings (low overlap with the source, copied wording), not only for broken data.
 
 ## Known limits
@@ -45,6 +46,6 @@ Four of the 30 topics (13%) had at least one sampled item that was not fully sup
 - A checker that is itself a language model can be wrong in both directions.
 - Source text can be thin; an item that is true but not in the source is removed, by design.
 - Clinical correctness, completeness and severity have not been assessed. Do not use this API for diagnosis or treatment decisions.
-- Per-statement evidence (source passage, URL, retrieval date) is not exposed yet. It is on the roadmap.
+- Evidence per item (`?include=evidence`) shows the passage the checker pointed to. It is the checker's evidence, found word for word in the source, not proof the item is right, and items without a located passage are marked "judged" and carry no quote.
 
 If you find a wrong item, open an issue with the topic name and the item.

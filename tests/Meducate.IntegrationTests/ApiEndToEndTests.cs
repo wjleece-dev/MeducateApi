@@ -177,6 +177,24 @@ public class ApiEndToEndTests(MeducateApiFactory factory) : IClassFixture<Meduca
         Assert.Equal("Asthma", doc.RootElement.GetProperty("name").GetString());
     }
 
+    [Fact]
+    public async Task IncludeEvidence_AddsSourceAndEvidence_OnlyWhenAskedFor()
+    {
+        var client = NewClient(factory);
+        client.DefaultRequestHeaders.Add("X-Api-Key", ApiConstants.DemoRawKey);
+
+        using var plain = JsonDocument.Parse(await client.GetStringAsync("/api/v1/topics/Asthma"));
+        Assert.False(plain.RootElement.TryGetProperty("evidence", out _));
+        Assert.False(plain.RootElement.TryGetProperty("source", out _));
+
+        using var withEvidence = JsonDocument.Parse(await client.GetStringAsync("/api/v1/topics/Asthma?include=evidence"));
+        Assert.Equal("Asthma", withEvidence.RootElement.GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Array, withEvidence.RootElement.GetProperty("evidence").ValueKind);
+        Assert.Equal("MedlinePlus", withEvidence.RootElement.GetProperty("source").GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Array, withEvidence.RootElement.GetProperty("source").GetProperty("pages").ValueKind);
+        Assert.True(withEvidence.RootElement.TryGetProperty("symptoms", out _)); // the normal fields are all still there
+    }
+
     [Theory]
     [InlineData("/api/v1/topics/No%2FSuch%20Topic")]
     [InlineData("/api/v1/topics/No/Such%20Topic")]
