@@ -132,62 +132,9 @@ public class ItemGroundingTests
         Assert.Equal(20, ItemGrounding.LongestVerbatimRun("Do not start CPR unless the seizure has clearly stopped and the person is not breathing or has no pulse", source));
     }
 
-    // Contradictions share almost every word with the source, so word overlap alone cannot catch them.
-    [Theory]
-    [InlineData("This drug increases blood pressure.", "Decreases blood pressure")]
-    [InlineData("This drug should be used with food.", "Should not be used with food")]
-    [InlineData("A rare adverse effect is rash.", "Common adverse effect is rash")]
-    [InlineData("The usual dose is 5 mg a day.", "Usual dose is 50 mg a day")]
-    public void AContradictedItem_IsQueuedForAStrictCheck_AndDroppedWhenThatCheckAgrees(string source, string item)
-    {
-        HealthTopic Build() => new() { Name = "X", Observations = [item, "Filler symptom one", "Filler symptom two"], Factors = ["F1", "F2"], Actions = ["A1", "A2"] };
-        var judge = new List<ItemJudgement> { No("observations", item) };
 
-        var first = ItemGrounding.Evaluate(Build(), source, judge);
-        Assert.Empty(first.Dropped);
-        Assert.Contains(first.RecheckItems, r => r.Item == item);
 
-        var confirmed = ItemGrounding.Apply(Build(), source, judge, [No("observations", item)]);
-        Assert.Contains(confirmed.Dropped, d => d.Item == item);
 
-        var cleared = ItemGrounding.Apply(Build(), source, judge, [Yes("observations", item)]);
-        Assert.Empty(cleared.Dropped);
-    }
-
-    [Fact]
-    public void AnItemThatSharesWordsWithTheSource_IsOnlyDroppedWhenTheStrictCheckAgrees()
-    {
-        HealthTopic Build() => new() { Name = "X", Observations = ["Fever and chills", "Pain", "Swelling"], Factors = ["F1", "F2"], Actions = ["A1", "A2"] };
-        var judge = new List<ItemJudgement> { No("observations", "Fever and chills") };
-
-        var first = ItemGrounding.Evaluate(Build(), Source, judge);
-        Assert.Empty(first.Dropped);
-        Assert.Single(first.RecheckItems);
-
-        Assert.Single(ItemGrounding.Apply(Build(), Source, judge, [No("observations", "Fever and chills")]).Dropped);
-        Assert.Empty(ItemGrounding.Apply(Build(), Source, judge, [Yes("observations", "Fever and chills")]).Dropped);
-    }
-
-    [Fact]
-    public void AGenericRiskFactorWhoseWordAppearsInTheSource_IsDroppedWhenBothChecksAgree()
-    {
-        // Real case from the accuracy audit: "Age" passes any word check, but the source never lists it as a risk.
-        const string source = "Cancer of the gallbladder is rare. It is more common in women and Native Americans.";
-        HealthTopic Build() => new() { Name = "Gallbladder Cancer", Observations = ["Jaundice", "Fever"], Factors = ["Gender (more common in women)", "Age"], Actions = ["Surgery", "Radiation"] };
-        var judge = new List<ItemJudgement> { No("factors", "Age") };
-
-        Assert.Single(ItemGrounding.Apply(Build(), source, judge, [No("factors", "Age")]).Dropped);
-    }
-
-    [Theory]
-    [InlineData("Should not be used", true)]
-    [InlineData("Rare complications", true)]
-    [InlineData("Decreases blood pressure", true)]
-    [InlineData("Dose of 5 mg", true)]
-    [InlineData("Fever and chills", false)]
-    [InlineData("Chest pain", false)]
-    public void HasQualifier_SpotsNegationDirectionFrequencyAndNumbers(string item, bool expected) =>
-        Assert.Equal(expected, ItemGrounding.HasQualifier(item));
 
     [Fact]
     public void AnUnsupportedItemThatCannotBeRemoved_IsReportedAsRetained_AndMarksTheTopicSuspect()
@@ -250,7 +197,7 @@ public class ItemGroundingTests
             Yes("observations", "Dizziness") with { Quote = null },
         };
 
-        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, null, links);
+        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, links);
 
         var verbatim = Assert.Single(evidence, e => e.Item == "Fatigue");
         Assert.Equal("verbatim", verbatim.Match);
@@ -276,21 +223,11 @@ public class ItemGroundingTests
         };
         var dropped = new List<GroundingDrop> { new("observations", "Dizziness", "removed") };
 
-        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, null, null, dropped);
+        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, null, dropped);
 
         Assert.Equal(["Fatigue"], evidence.Select(e => e.Item).ToArray());
     }
 
-    [Fact]
-    public void BuildEvidence_UsesTheStrictChecksApprovalWhenTheFirstCheckDoubtedTheItem()
-    {
-        var judge = new List<ItemJudgement> { No("observations", "Fatigue") };
-        var strict = new List<ItemJudgement> { Yes("observations", "Fatigue") with { Quote = "Symptoms include fatigue" } };
-
-        var evidence = ItemGrounding.BuildEvidence(AnemiaTopic(), Encyclopedia, judge, strict);
-
-        Assert.Equal("verbatim", Assert.Single(evidence).Match);
-    }
 
     [Fact]
     public void MergeLinks_CombinesProvidersAndDropsDuplicates()
@@ -302,5 +239,45 @@ public class ItemGroundingTests
 
         Assert.Equal(["https://a", "https://b"], merged!.Select(l => l.Url).ToArray());
         Assert.Null(TopicHelpers.MergeLinks([new RawTopicData("T", "x", "PubMed")]));
+    }
+
+    // Contradictions share almost every word with the source, so word overlap alone cannot catch them.
+    [Theory]
+    [InlineData("This drug increases blood pressure.", "Decreases blood pressure")]
+    [InlineData("A rare adverse effect is rash.", "Common adverse effect is rash")]
+    [InlineData("The usual dose is 5 mg a day.", "Usual dose is 50 mg a day")]
+    public void AnItemThatSaysTheOppositeOfTheSource_IsDropped_WhenTheJudgeAlsoDoubtsIt(string source, string item)
+    {
+        var topic = new HealthTopic { Name = "X", Observations = [item, "Filler symptom one", "Filler symptom two"], Factors = ["F1", "F2"], Actions = ["A1", "A2"] };
+
+        var outcome = ItemGrounding.Apply(topic, source, [No("observations", item)]);
+
+        Assert.Contains(outcome.Dropped, d => d.Item == item);
+        Assert.DoesNotContain(item, topic.Observations!);
+    }
+
+    [Theory]
+    [InlineData("This drug increases blood pressure.", "Raises blood pressure")]               // same direction, different word
+    [InlineData("This drug should not be used with food.", "Should not be used with food")]  // same negation
+    [InlineData("The usual dose is 5 mg a day.", "Usual dose is 5 mg a day")]                 // same number
+    [InlineData("Fever and chills are common.", "Fever and chills")]                           // nothing to compare
+    public void AnItemThatAgreesWithTheSource_IsKept_EvenWhenTheJudgeDoubtsIt(string source, string item)
+    {
+        var topic = new HealthTopic { Name = "X", Observations = [item, "Filler symptom one", "Filler symptom two"], Factors = ["F1", "F2"], Actions = ["A1", "A2"] };
+
+        var outcome = ItemGrounding.Apply(topic, source, [No("observations", item)]);
+
+        Assert.Empty(outcome.Dropped);
+    }
+
+    [Fact]
+    public void TheJudgesOpinionIsRequired_AContradictionAloneDoesNotRemoveAnItem()
+    {
+        var topic = new HealthTopic { Name = "X", Observations = ["Decreases blood pressure", "Filler symptom one", "Filler symptom two"], Factors = ["F1", "F2"], Actions = ["A1", "A2"] };
+
+        // The judge approved it, so nothing is removed even though the wording is the opposite.
+        var outcome = ItemGrounding.Apply(topic, "This drug increases blood pressure.", [Yes("observations", "Decreases blood pressure")]);
+
+        Assert.Empty(outcome.Dropped);
     }
 }

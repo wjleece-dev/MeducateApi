@@ -36,10 +36,18 @@ Four of the 30 topics (13%) had at least one sampled item that was not fully sup
 
 ## What changed because of it
 
-- Any item the first model check doubts, whose words appear in the source, now gets a second, stricter check (negation, direction, frequency, severity, numbers, and whether the source states it at all). Both must agree before the item is removed.
+- An item the model doubts is now also removed when it says the opposite of the source sentence it matches: a different direction (increases/decreases), frequency (rare/common) or number. This is checked by comparing wording, not by asking a model.
 - An unsupported item that cannot be removed (it is the last in its list, or the checker rejected almost everything) now stops the topic being published, or replaces the stored version.
 - Each topic now records the passages the checker used, and `?include=evidence` exposes them with the source pages and fetch date.
 - The nightly integrity check now sends an email for content warnings (low overlap with the source, copied wording), not only for broken data.
+
+## Follow-up: a full pass over every topic
+
+After the audit, every topic was re-checked (872 topics, 16,155 list items). The check proposed 205 removals. Each proposal was read against its source, and only the ones the source clearly does not state were applied: **23 items** (for example four unsupported risk factors on Gallbladder Cancer, and four on Mood Disorder, two of which described autism). The other 182 were wrongly flagged, so they were left alone.
+
+That result also showed that a second, stricter model check I had added was wrong far more often than right (10 correct out of 184 proposals), so it was removed. Reading the proposals is slow work. It is why the pipeline removes an item only when two signals agree, and why a person still has to look before anything is changed in bulk.
+
+A scan of all 16,155 items for items that say the opposite of their source found none that were real. Negation ("should" against "should not") is not checked, because wording such as "if ulcers do not heal" made that check wrong more often than right. A contradiction that differs only by a negation, and whose other words match the source, can still get through.
 
 ## Known limits
 

@@ -7,31 +7,28 @@ namespace Meducate.Application.Helpers;
 internal sealed record GroundingDrop(string Field, string Item, string Reason);
 
 // Rejected is set when the judge's verdicts were not applied at all (it rejected almost everything).
-// Recheck lists items the judge doubts but whose words appear in the source: they may contradict it (negation,
-// direction, frequency, a number) or be general knowledge that merely shares words with it, so they get a second,
-// stricter look. Retained lists items that should have been
-// removed but could not be, because that would empty a field or the judge looked unreliable. Both are signals that
-// the extraction cannot be trusted as it stands.
+// Retained lists items that should have been removed but could not be, because that would empty a field or the
+// judge looked unreliable. Either is a signal that the extraction cannot be trusted as it stands.
 internal sealed record GroundingOutcome(
     IReadOnlyList<GroundingDrop> Dropped,
     string? Rejected = null,
-    IReadOnlyList<ItemRef>? Recheck = null,
     IReadOnlyList<GroundingDrop>? Retained = null)
 {
-    internal IReadOnlyList<ItemRef> RecheckItems => Recheck ?? [];
     internal IReadOnlyList<GroundingDrop> RetainedItems => Retained ?? [];
 
     // True when unsupported content is still in the topic, so it should not be published or replace a stored topic.
     internal bool IsSuspect => Rejected is not null || RetainedItems.Count > 0;
 }
 
-// Removes list items the source does not back. Independent signals must agree, because each alone is wrong
-// too often to delete on (measured on 216 topics: the model alone was wrong about half the time, and word overlap
-// alone cannot tell "women" from "female gender"):
+// Removes list items the source does not back. Two independent signals must agree, because each alone is wrong
+// too often to delete on (measured: the model alone was wrong about half the time, and word overlap alone cannot
+// tell "women" from "female gender"):
 //   1. the model says the source does not support the item, and
-//   2. either fewer than half of the item's content words appear anywhere in the source, or a second, stricter
-//      model check also says the source does not state it. Word overlap cannot see "decreases" vs "increases", or
-//      that "Age" is not a stated risk factor just because the word "age" occurs somewhere in the source.
+//   2. either fewer than half of the item's content words appear anywhere in the source, or the item says the
+//      opposite of the source sentence it matches (a direction, frequency or number that differs). Word overlap
+//      cannot see "decreases" vs "increases", so that case is checked directly. Negation ("should" vs "should not")
+//      is not checked: wording such as "if ulcers do not heal" made it wrong far more often than right.
+// A second model check on every doubted item was tried and removed: on 184 proposals it was right 10 times.
 // Anything the model did not judge stays, so a missing or garbled reply never removes content.
 internal static partial class ItemGrounding
 {
@@ -46,19 +43,22 @@ internal static partial class ItemGrounding
         "are", "was", "were", "been", "its",
     };
 
-    // Words that can flip the meaning of a statement while leaving almost every other word unchanged.
-    private static readonly HashSet<string> QualifierWords = new(StringComparer.Ordinal)
-    {
-        "not", "no", "never", "without", "avoid", "cannot", "cant", "unable", "nor", "non", "except", "unless", "only",
-        "rare", "rarely", "common", "commonly", "frequent", "frequently", "often", "always", "usually", "occasionally",
-        "sometimes", "mild", "mildly", "moderate", "severe", "severely", "high", "higher", "low", "lower", "more", "less",
-        "most", "least", "all", "none", "every", "both", "either", "should", "must", "may", "might", "can",
-    };
-
-    private static readonly string[] QualifierPrefixes =
+    // Pairs of opposite wording; a statement using one side contradicts a source that uses only the other.
+    private static readonly string[][] Opposites =
     [
-        "increas", "decreas", "reduc", "rais", "lower", "elevat", "declin", "worsen", "improv", "prevent", "cause", "avoid",
+        ["increas", "rais", "elevat", "higher", "more", "high", "greater"],
+        ["decreas", "reduc", "lower", "declin", "less", "low", "fewer"],
+        ["rare", "rarely", "uncommon", "seldom", "infrequent"],
+        ["common", "commonly", "frequent", "frequently", "often", "usually", "typical"],
+        ["safe", "safely"],
+        ["unsafe", "dangerous", "harmful", "toxic"],
     ];
+
+    // A sentence with a negation ("not common") can express a polarity without using its word, so it is not compared.
+    private static readonly HashSet<string> Negations = new(StringComparer.Ordinal)
+    {
+        "not", "no", "never", "without", "avoid", "cannot", "cant", "unable", "nor", "non",
+    };
 
     [GeneratedRegex("[^a-z0-9 ]")]
     private static partial Regex NonAlphanumeric();
@@ -66,10 +66,15 @@ internal static partial class ItemGrounding
     [GeneratedRegex("(ing|ed|es|s|ly|ity|e)$")]
     private static partial Regex Suffix();
 
-    internal static GroundingOutcome Apply(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements,
-        IReadOnlyList<ItemJudgement>? recheck = null)
+    [GeneratedRegex(@"\([^)]*\)")]
+    private static partial Regex Parenthetical();
+
+    [GeneratedRegex(@"(?<=[.!?])\s+|\s---\s|\n+")]
+    private static partial Regex SentenceBreak();
+
+    internal static GroundingOutcome Apply(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements)
     {
-        var outcome = Evaluate(topic, rawText, judgements, recheck);
+        var outcome = Evaluate(topic, rawText, judgements);
         if (outcome.Dropped.Count == 0)
             return outcome;
 
@@ -79,16 +84,15 @@ internal static partial class ItemGrounding
         return outcome;
     }
 
-    // Same decision without changing the topic (used for dry runs over stored topics). Call it first without
-    // `recheck` to learn which items need the stricter check, then again with that check's verdicts.
-    internal static GroundingOutcome Evaluate(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements,
-        IReadOnlyList<ItemJudgement>? recheck = null)
+    // Same decision without changing the topic (used for dry runs over stored topics).
+    internal static GroundingOutcome Evaluate(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements)
     {
         if (judgements is not { Count: > 0 })
             return new GroundingOutcome([]);
 
         var sourceWords = Words(rawText).ToHashSet();
         var sourceText = Normalise(rawText);
+        List<SentenceInfo>? sentences = null;
         var lists = new (string Field, List<string>? Items)[]
         {
             ("observations", topic.Observations), ("factors", topic.Factors), ("actions", topic.Actions),
@@ -96,7 +100,6 @@ internal static partial class ItemGrounding
 
         var dropped = new List<GroundingDrop>();
         var retained = new List<GroundingDrop>();
-        var pending = new List<ItemRef>();
         var proposed = 0;
         foreach (var (field, items) in lists)
         {
@@ -117,19 +120,9 @@ internal static partial class ItemGrounding
                 {
                     fieldDrops.Add(new GroundingDrop(field, item, $"judge: not in source; {coverage:P0} of its words appear in the source"));
                 }
-                else
+                else if (Contradicts(item, sentences ??= Sentences(rawText)))
                 {
-                    // Its words appear in the source, which is not proof the source says it ("Age" and "Polyp size" pass a
-                    // word check, and so does "decreases blood pressure" against "increases blood pressure"). Only a second,
-                    // stricter model check agreeing with the first removes it.
-                    var second = recheck?.FirstOrDefault(j => j.Field == field && !j.Supported
-                        && string.Equals(j.Item, item, StringComparison.OrdinalIgnoreCase));
-                    if (second is not null)
-                        fieldDrops.Add(new GroundingDrop(field, item, HasQualifier(item)
-                            ? "judge and strict check: the source does not state it exactly (negation, direction, frequency, severity or number differs)"
-                            : "judge and strict check: the source does not state it"));
-                    else if (recheck is null)
-                        pending.Add(new ItemRef(field, item));
+                    fieldDrops.Add(new GroundingDrop(field, item, "judge: says the opposite of the source (direction, frequency or number differs)"));
                 }
             }
 
@@ -143,16 +136,68 @@ internal static partial class ItemGrounding
 
         var total = lists.Sum(l => l.Items?.Count ?? 0);
         if (total >= MinItemsForShareGuard && proposed > total * MaxDropShare)
-            return new GroundingOutcome([], $"judge rejected {proposed} of {total} items; treated as unreliable", pending, [.. dropped, .. retained]);
+            return new GroundingOutcome([], $"judge rejected {proposed} of {total} items; treated as unreliable", [.. dropped, .. retained]);
 
-        return new GroundingOutcome(dropped, null, pending, retained);
+        return new GroundingOutcome(dropped, null, retained);
+    }
+
+    private sealed record SentenceInfo(HashSet<string> Stems, HashSet<string> Tokens, HashSet<string> Numbers, int TokenCount);
+
+    private static List<SentenceInfo> Sentences(string rawText) =>
+        [.. SentenceBreak().Split(rawText)
+            .Select(s => Normalise(s).Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .Where(t => t.Length >= 3)
+            .Select(t => new SentenceInfo(
+                t.Where(w => w.Length > 3 && !Filler.Contains(w)).Select(w => Suffix().Replace(w, "")).ToHashSet(),
+                t.ToHashSet(),
+                t.Where(w => w.All(char.IsDigit)).ToHashSet(),
+                t.Length))];
+
+    // True when the item says the opposite of every source sentence that is about the same thing: a different
+    // direction (increases/decreases), frequency (rare/common) or number. Needs at least two content words to
+    // decide which sentence the item is about.
+    private static bool Contradicts(string item, IReadOnlyList<SentenceInfo> sentences)
+    {
+        // Wording inside brackets is an aside ("(usually before age 45)"), not the claim, so it is ignored for direction.
+        var tokens = Normalise(Parenthetical().Replace(item, " ")).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var itemNumbers = Normalise(item).Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => w.All(char.IsDigit)).ToHashSet();
+        var itemGroups = Opposites.Select((g, i) => (Index: i, Present: tokens.Any(t => g.Any(p => t.StartsWith(p, StringComparison.Ordinal))))).Where(x => x.Present).Select(x => x.Index).ToList();
+        if (itemNumbers.Count == 0 && itemGroups.Count == 0)
+            return false;
+
+        var content = tokens
+            .Where(w => w.Length > 3 && !Filler.Contains(w) && !Negations.Contains(w) && !Opposites.Any(g => g.Any(p => w.StartsWith(p, StringComparison.Ordinal))))
+            .Select(w => Suffix().Replace(w, ""))
+            .Distinct().ToList();
+        if (content.Count < 2)
+            return false;
+
+        var need = (int)Math.Ceiling(content.Count * 0.7);
+        var about = sentences.Where(s => content.Count(c => s.Stems.Contains(c)) >= need).ToList();
+        return about.Count > 0 && about.All(s => Conflicts(s, itemNumbers, itemGroups));
+    }
+
+    private static bool Conflicts(SentenceInfo sentence, HashSet<string> itemNumbers, List<int> itemGroups)
+    {
+        foreach (var g in itemGroups)
+        {
+            var mine = Opposites[g];
+            var theirs = Opposites[g % 2 == 0 ? g + 1 : g - 1];
+            var sentenceHasMine = sentence.Tokens.Any(t => mine.Any(p => t.StartsWith(p, StringComparison.Ordinal)));
+            var sentenceHasTheirs = sentence.Tokens.Any(t => theirs.Any(p => t.StartsWith(p, StringComparison.Ordinal)));
+            // "rare" and "not common" say the same thing, so a negation in the sentence makes the comparison unreliable.
+            if (!sentenceHasMine && sentenceHasTheirs && !sentence.Tokens.Any(Negations.Contains))
+                return true;
+        }
+
+        return itemNumbers.Count > 0 && sentence.Numbers.Count > 0 && !itemNumbers.Overlaps(sentence.Numbers);
     }
 
     // Records, for every item that stays in the topic, the passage of the source the model said backs it. A passage
     // counts as verbatim only when it is found word for word in the source; otherwise the item is marked as judged
     // and no quote is kept, so a loosely worded or invented quote is never shown as evidence.
     internal static List<ItemEvidence> BuildEvidence(HealthTopic topic, string rawText, IReadOnlyList<ItemJudgement>? judgements,
-        IReadOnlyList<ItemJudgement>? strict = null, IReadOnlyList<SourceLink>? links = null, IReadOnlyList<GroundingDrop>? excluding = null)
+        IReadOnlyList<SourceLink>? links = null, IReadOnlyList<GroundingDrop>? excluding = null)
     {
         var evidence = new List<ItemEvidence>();
         if (judgements is not { Count: > 0 } || string.IsNullOrWhiteSpace(rawText))
@@ -172,7 +217,7 @@ internal static partial class ItemGrounding
                 if (excluding?.Any(d => d.Field == field && string.Equals(d.Item, item, StringComparison.OrdinalIgnoreCase)) == true)
                     continue;
 
-                var verdict = Supporting(judgements, field, item) ?? Supporting(strict, field, item);
+                var verdict = Supporting(judgements, field, item);
                 if (verdict is null)
                     continue;
 
@@ -255,17 +300,6 @@ internal static partial class ItemGrounding
     private static partial Regex Whitespace();
 
     private static string Collapse(string text) => Whitespace().Replace(Normalise(text), " ").Trim();
-
-    // True when the item carries a word that can reverse its meaning without changing the words around it.
-    internal static bool HasQualifier(string item)
-    {
-        if (item.Any(char.IsDigit))
-            return true;
-
-        return Normalise(item)
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Any(w => QualifierWords.Contains(w) || QualifierPrefixes.Any(p => w.StartsWith(p, StringComparison.Ordinal)));
-    }
 
     // Share of the item's content words found in the source (1 when it has none to check). A word also counts when
     // the source contains its first five letters, so obese/obesity and blockage/blockages are not mistaken for gaps.

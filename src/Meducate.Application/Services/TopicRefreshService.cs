@@ -194,20 +194,11 @@ internal sealed class TopicRefreshService(
                     await Task.Delay(LlmThrottle, ct);
                     structured = await _llmProcessor.VerifyHealthTopicAsync(topic.RawSource, structured, ct, escalate) ?? structured;
 
-                    // Last gate: drop list items the source does not back (see ItemGrounding). Items that match the
-                    // source word for word but may say the opposite get a second, stricter check.
+                    // Last gate: drop list items the source does not back (see ItemGrounding)
                     await Task.Delay(LlmThrottle, ct);
                     var judgements = await _llmProcessor.JudgeListItemsAsync(topic.RawSource, structured, ct, escalate);
-                    IReadOnlyList<ItemJudgement>? strict = null;
-                    var pending = ItemGrounding.Evaluate(structured, topic.RawSource, judgements).RecheckItems;
-                    if (pending.Count > 0)
-                    {
-                        await Task.Delay(LlmThrottle, ct);
-                        strict = await _llmProcessor.JudgeQualifiedItemsAsync(topic.RawSource, structured, pending, ct, escalate);
-                    }
-
-                    var grounding = ItemGrounding.Apply(structured, topic.RawSource, judgements, strict);
-                    structured.Evidence = ItemGrounding.BuildEvidence(structured, topic.RawSource, judgements, strict, topic.SourceLinks);
+                    var grounding = ItemGrounding.Apply(structured, topic.RawSource, judgements);
+                    structured.Evidence = ItemGrounding.BuildEvidence(structured, topic.RawSource, judgements, topic.SourceLinks);
                     if (grounding.Dropped.Count > 0 || grounding.IsSuspect)
                         _logger.LogInformation("Grounding '{Name}': dropped {Count} unsupported items{Rejected}",
                             topic.Name, grounding.Dropped.Count, grounding.Rejected is null ? "" : $" ({grounding.Rejected})");

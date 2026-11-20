@@ -150,7 +150,6 @@ public class DataIntegrityCheckServiceTests
     {
         public Task<HealthTopic?> ParseHealthTopicAsync(string rawText, string? topicType = null, string? discoveredName = null, CancellationToken ct = default, bool escalate = false) => throw new NotImplementedException();
         public Task<IReadOnlyList<ItemJudgement>?> JudgeListItemsAsync(string rawText, HealthTopic topic, CancellationToken ct = default, bool escalate = false) => Task.FromResult<IReadOnlyList<ItemJudgement>?>(null);
-        public Task<IReadOnlyList<ItemJudgement>?> JudgeQualifiedItemsAsync(string rawText, HealthTopic topic, IReadOnlyList<ItemRef> items, CancellationToken ct = default, bool escalate = false) => Task.FromResult<IReadOnlyList<ItemJudgement>?>(null);
         public Task<HealthTopic?> VerifyHealthTopicAsync(string rawText, HealthTopic extracted, CancellationToken ct = default, bool escalate = false) => throw new NotImplementedException();
         public Task<Dictionary<string, string>> ClassifyTopicNamesAsync(IReadOnlyList<TopicClassifyInput> topics, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<Dictionary<string, string>> ClassifyTopicCategoriesAsync(IReadOnlyList<TopicCategoryInput> topics, CancellationToken ct = default) => throw new NotImplementedException();
