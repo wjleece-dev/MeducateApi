@@ -157,6 +157,39 @@ internal static class InternalEndpoints
                 logger.LogInformation("Internal: grounding checked {Topics} topics, {Drops} unsupported items, applied={Applied}", results.Count, edits.Count, apply);
                 return Results.Ok(new { checkedTopics = results.Count, unsupportedItems = edits.Count, applied = applied?.Applied, stoppedByBudget, results });
             });
+        // Re-derives stored evidence entries that have no passage ("judged") from the topic's own source text, with no LLM calls.
+        // Also reports topics that have no source pages.
+        internalRoutes.MapPost("/internal/topics/evidence-passages",
+            async (HttpContext http, ITopicQueryRepository queryRepo, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct,
+                int skip = 0, int count = 50) =>
+            {
+                var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
+                var authError = CheckToken(http, config, logger, "evidence-passages");
+                if (authError is not null) return authError;
+
+                var batch = await queryRepo.GetServedTopicBatchAsync(Math.Max(0, skip), Math.Clamp(count, 1, 100), ct);
+                var tracked = await queryRepo.GetByNamesTrackedAsync(batch.Select(t => t.Name).ToList(), ct);
+                var upgraded = 0;
+                var withoutLinks = new List<string>();
+                foreach (var topic in tracked)
+                {
+                    if (topic.SourceLinks is not { Count: > 0 })
+                        withoutLinks.Add(topic.Name);
+
+                    if (topic.Evidence is not { Count: > 0 } || string.IsNullOrWhiteSpace(topic.RawSource))
+                        continue;
+
+                    var fresh = ItemGrounding.UpgradeJudged(topic.Evidence, topic.RawSource, topic.SourceLinks);
+                    if (fresh.Changed == 0)
+                        continue;
+
+                    topic.Evidence = fresh.Evidence;
+                    upgraded += fresh.Changed;
+                }
+
+                await writeRepo.SaveChangesAsync(ct);
+                return Results.Ok(new { checkedTopics = tracked.Count, upgraded, withoutLinks });
+            });
         // Fills in the pages each stored topic's source came from, without fetching them and without any LLM calls.
         internalRoutes.MapPost("/internal/topics/source-links",
             async (HttpContext http, ITopicQueryRepository queryRepo, ITopicWriteRepository writeRepo, IEnumerable<Meducate.Domain.Services.IMedicalDataProvider> providers, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct,

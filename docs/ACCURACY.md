@@ -54,6 +54,6 @@ A scan of all 16,155 items for items that say the opposite of their source found
 - A checker that is itself a language model can be wrong in both directions.
 - Source text can be thin; an item that is true but not in the source is removed, by design.
 - Clinical correctness, completeness and severity have not been assessed. Do not use this API for diagnosis or treatment decisions.
-- Evidence per item (`?include=evidence`) shows the passage the checker pointed to. It is the checker's evidence, found word for word in the source, not proof the item is right, and items without a located passage are marked "judged" and carry no quote.
+- Evidence per item (`?include=evidence`) is the checker's evidence, not proof the item is right. A `verbatim` passage is the checker's own quote, found word for word in the source. A `matched` passage is the source sentence whose wording overlaps the item most; it is real source text but a closest match, and it may not make the point the item makes. A `judged` item was approved by the checker with no passage found, and shows no quote.
 
 If you find a wrong item, open an issue with the topic name and the item.

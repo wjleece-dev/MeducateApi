@@ -229,6 +229,11 @@ internal static partial class ItemGrounding
                     var url = section is null ? null : links?.FirstOrDefault(l => l.Title == section.LinkTitle)?.Url;
                     evidence.Add(new ItemEvidence(field, item, quote!.Length > 300 ? quote[..300] : quote, "verbatim", section?.Label, url));
                 }
+                else if (ClosestPassage(item, sections) is { } closest)
+                {
+                    var url = links?.FirstOrDefault(l => l.Title == closest.Section.LinkTitle)?.Url;
+                    evidence.Add(new ItemEvidence(field, item, closest.Passage, "matched", closest.Section.Label, url));
+                }
                 else
                 {
                     evidence.Add(new ItemEvidence(field, item, null, "judged"));
@@ -253,7 +258,72 @@ internal static partial class ItemGrounding
     private static ItemJudgement? Supporting(IReadOnlyList<ItemJudgement>? judgements, string field, string item) =>
         judgements?.FirstOrDefault(j => j.Supported && j.Field == field && string.Equals(j.Item, item, StringComparison.OrdinalIgnoreCase));
 
-    private sealed record Section(string Label, string LinkTitle, string Text);
+    private sealed record Section(string Label, string LinkTitle, string Text, string Original);
+
+    private sealed record Closest(string Passage, Section Section);
+
+    // The source sentence that shares the most wording with the item, when it shares nearly all of it. Used when the
+    // model's own quote could not be found: the sentence returned is real source text, found by wording alone.
+    private static Closest? ClosestPassage(string item, IReadOnlyList<Section> sections)
+    {
+        var words = Words(Parenthetical().Replace(item, " ")).Distinct().ToList();
+        if (words.Count == 0)
+            return null;
+
+        Closest? best = null;
+        var bestScore = 0.0;
+        var bestLength = int.MaxValue;
+        foreach (var section in sections)
+        {
+            foreach (var sentence in SentenceBreak().Split(section.Original))
+            {
+                var passage = CleanPassage(sentence);
+                if (passage.Length < 12)
+                    continue;
+
+                var stems = Words(passage).ToHashSet();
+                var score = (double)words.Count(stems.Contains) / words.Count;
+                if (score < 0.75 || (words.Count > 1 && words.Count(stems.Contains) < 2))
+                    continue;
+
+                if (score > bestScore || (score == bestScore && passage.Length < bestLength))
+                {
+                    best = new Closest(passage.Length > 300 ? passage[..300].TrimEnd() + "..." : passage, section);
+                    bestScore = score;
+                    bestLength = passage.Length;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    // Drops the bracketed headings and separators the raw source uses between pages.
+    private static string CleanPassage(string sentence) =>
+        Whitespace().Replace(Regex.Replace(sentence, @"\[[^\]]*\]|---", " "), " ").Trim();
+
+    // Gives entries that have no passage ("judged") their closest source sentence, when there is one.
+    internal static (List<ItemEvidence> Evidence, int Changed) UpgradeJudged(IReadOnlyList<ItemEvidence> evidence, string rawText, IReadOnlyList<SourceLink>? links)
+    {
+        var sections = SplitSections(rawText);
+        var result = new List<ItemEvidence>(evidence.Count);
+        var changed = 0;
+        foreach (var e in evidence)
+        {
+            if (e.Match == "judged" && ClosestPassage(e.Item, sections) is { } closest)
+            {
+                var url = links?.FirstOrDefault(l => l.Title == closest.Section.LinkTitle)?.Url;
+                result.Add(new ItemEvidence(e.Field, e.Item, closest.Passage, "matched", closest.Section.Label, url));
+                changed++;
+            }
+            else
+            {
+                result.Add(e);
+            }
+        }
+
+        return (result, changed);
+    }
 
     // The raw source is several pages joined together, each starting with a bracketed heading.
     private static List<Section> SplitSections(string rawText)
@@ -287,7 +357,7 @@ internal static partial class ItemGrounding
                 label = "MedlinePlus topic summary";
             }
 
-            sections.Add(new Section(label, linkTitle, Collapse(part)));
+            sections.Add(new Section(label, linkTitle, Collapse(part), part));
         }
 
         return sections;

@@ -205,11 +205,17 @@ public class ItemGroundingTests
         Assert.Equal("Encyclopedia article: Anemia", verbatim.Section);
         Assert.Equal("https://medlineplus.gov/ency/article/000560.htm", verbatim.Url);
 
-        // A quote that cannot be found is never shown as evidence.
+        // The model's loose quote is never shown. The source sentence closest to the item is, labelled as a match.
         var loose = Assert.Single(evidence, e => e.Item == "Pale skin");
-        Assert.Equal("judged", loose.Match);
-        Assert.Null(loose.Quote);
-        Assert.Equal("judged", Assert.Single(evidence, e => e.Item == "Dizziness").Match);
+        Assert.Equal("matched", loose.Match);
+        Assert.Equal("Symptoms include fatigue, pale skin and shortness of breath.", loose.Quote);
+        Assert.Equal("Encyclopedia article: Anemia", loose.Section);
+        Assert.Equal("https://medlineplus.gov/ency/article/000560.htm", loose.Url);
+
+        // Nothing in the source resembles it, so there is no passage to show.
+        var none = Assert.Single(evidence, e => e.Item == "Dizziness");
+        Assert.Equal("judged", none.Match);
+        Assert.Null(none.Quote);
     }
 
     [Fact]
@@ -279,5 +285,38 @@ public class ItemGroundingTests
         var outcome = ItemGrounding.Apply(topic, "This drug increases blood pressure.", [Yes("observations", "Decreases blood pressure")]);
 
         Assert.Empty(outcome.Dropped);
+    }
+
+    [Fact]
+    public void UpgradeJudged_GivesStoredEntriesWithoutAPassageTheirClosestSourceSentence()
+    {
+        SourceLink[] links = [new("Anemia", "https://medlineplus.gov/ency/article/000560.htm")];
+        ItemEvidence[] stored =
+        [
+            new("observations", "Pale skin", null, "judged"),
+            new("observations", "Dizziness", null, "judged"),
+            new("observations", "Fatigue", "Symptoms include fatigue", "verbatim", "Encyclopedia article: Anemia"),
+        ];
+
+        var (evidence, changed) = ItemGrounding.UpgradeJudged(stored, Encyclopedia, links);
+
+        Assert.Equal(1, changed);
+        Assert.Equal("matched", evidence[0].Match);
+        Assert.Contains("pale skin", evidence[0].Quote);
+        Assert.Equal("judged", evidence[1].Match);          // nothing close in the source
+        Assert.Equal("verbatim", evidence[2].Match);        // already has evidence: untouched
+    }
+
+    [Fact]
+    public void ClosestPassage_NeverReturnsTheSourceHeadings()
+    {
+        var evidence = ItemGrounding.BuildEvidence(
+            new HealthTopic { Name = "Anemia", Observations = ["Anemia is a condition"] },
+            Encyclopedia, [Yes("observations", "Anemia is a condition") with { Quote = null }]);
+
+        var quote = Assert.Single(evidence).Quote;
+        Assert.NotNull(quote);
+        Assert.DoesNotContain("[", quote);
+        Assert.DoesNotContain("---", quote);
     }
 }
