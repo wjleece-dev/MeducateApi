@@ -319,4 +319,18 @@ public class ItemGroundingTests
         Assert.DoesNotContain("[", quote);
         Assert.DoesNotContain("---", quote);
     }
+
+    [Fact]
+    public void ClosestPassage_DoesNotMatchAnItemOnAGenericWordAlone()
+    {
+        // Real case: "Red eyes" matched "Early treatment can help protect your eyes" because "red" was ignored.
+        const string source = "[MedlinePlus] Early treatment can help protect your eyes against vision loss. Glaucoma often has no early symptoms.";
+        var evidence = ItemGrounding.BuildEvidence(
+            new HealthTopic { Name = "Glaucoma", Observations = ["Red eyes (angle-closure glaucoma)"] },
+            source, [Yes("observations", "Red eyes (angle-closure glaucoma)") with { Quote = null }]);
+
+        var only = Assert.Single(evidence);
+        Assert.Equal("judged", only.Match);
+        Assert.Null(only.Quote);
+    }
 }

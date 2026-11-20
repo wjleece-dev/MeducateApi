@@ -266,7 +266,8 @@ internal static partial class ItemGrounding
     // model's own quote could not be found: the sentence returned is real source text, found by wording alone.
     private static Closest? ClosestPassage(string item, IReadOnlyList<Section> sections)
     {
-        var words = Words(Parenthetical().Replace(item, " ")).Distinct().ToList();
+        // Short words count here ("red", "age"): ignoring them left items like "Red eyes" with one word to match on.
+        var words = MatchTokens(Parenthetical().Replace(item, " ")).Distinct().ToList();
         if (words.Count == 0)
             return null;
 
@@ -281,7 +282,7 @@ internal static partial class ItemGrounding
                 if (passage.Length < 12)
                     continue;
 
-                var stems = Words(passage).ToHashSet();
+                var stems = MatchTokens(passage).ToHashSet();
                 var score = (double)words.Count(stems.Contains) / words.Count;
                 if (score < 0.75 || (words.Count > 1 && words.Count(stems.Contains) < 2))
                     continue;
@@ -298,23 +299,41 @@ internal static partial class ItemGrounding
         return best;
     }
 
+    private static IEnumerable<string> MatchTokens(string text) =>
+        Normalise(text)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length >= 3 && !Filler.Contains(w))
+            .Select(w => Suffix().Replace(w, ""));
+
     // Drops the bracketed headings and separators the raw source uses between pages.
     private static string CleanPassage(string sentence) =>
         Whitespace().Replace(Regex.Replace(sentence, @"\[[^\]]*\]|---", " "), " ").Trim();
 
     // Gives entries that have no passage ("judged") their closest source sentence, when there is one.
-    internal static (List<ItemEvidence> Evidence, int Changed) UpgradeJudged(IReadOnlyList<ItemEvidence> evidence, string rawText, IReadOnlyList<SourceLink>? links)
+    // With redo, earlier closest-match entries are re-derived too (back to "judged" when nothing close remains).
+    internal static (List<ItemEvidence> Evidence, int Changed) UpgradeJudged(IReadOnlyList<ItemEvidence> evidence, string rawText, IReadOnlyList<SourceLink>? links, bool redo = false)
     {
         var sections = SplitSections(rawText);
         var result = new List<ItemEvidence>(evidence.Count);
         var changed = 0;
         foreach (var e in evidence)
         {
-            if (e.Match == "judged" && ClosestPassage(e.Item, sections) is { } closest)
+            if (e.Match == "judged" || (redo && e.Match == "matched"))
             {
-                var url = links?.FirstOrDefault(l => l.Title == closest.Section.LinkTitle)?.Url;
-                result.Add(new ItemEvidence(e.Field, e.Item, closest.Passage, "matched", closest.Section.Label, url));
-                changed++;
+                ItemEvidence next;
+                if (ClosestPassage(e.Item, sections) is { } closest)
+                {
+                    var url = links?.FirstOrDefault(l => l.Title == closest.Section.LinkTitle)?.Url;
+                    next = new ItemEvidence(e.Field, e.Item, closest.Passage, "matched", closest.Section.Label, url);
+                }
+                else
+                {
+                    next = new ItemEvidence(e.Field, e.Item, null, "judged");
+                }
+
+                if (next != e)
+                    changed++;
+                result.Add(next);
             }
             else
             {

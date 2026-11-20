@@ -161,7 +161,7 @@ internal static class InternalEndpoints
         // Also reports topics that have no source pages.
         internalRoutes.MapPost("/internal/topics/evidence-passages",
             async (HttpContext http, ITopicQueryRepository queryRepo, ITopicWriteRepository writeRepo, IConfiguration config, ILoggerFactory loggerFactory, CancellationToken ct,
-                int skip = 0, int count = 50) =>
+                int skip = 0, int count = 50, bool redo = false) =>
             {
                 var logger = loggerFactory.CreateLogger("Meducate.API.Internal");
                 var authError = CheckToken(http, config, logger, "evidence-passages");
@@ -179,7 +179,7 @@ internal static class InternalEndpoints
                     if (topic.Evidence is not { Count: > 0 } || string.IsNullOrWhiteSpace(topic.RawSource))
                         continue;
 
-                    var fresh = ItemGrounding.UpgradeJudged(topic.Evidence, topic.RawSource, topic.SourceLinks);
+                    var fresh = ItemGrounding.UpgradeJudged(topic.Evidence, topic.RawSource, topic.SourceLinks, redo);
                     if (fresh.Changed == 0)
                         continue;
 
