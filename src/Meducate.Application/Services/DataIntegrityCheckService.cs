@@ -130,12 +130,10 @@ internal sealed partial class DataIntegrityCheckService(
                     console?.WriteLine($"  [WARN] {msg}");
                 }
 
-                var copied = new[] { topic.Summary! }
-                    .Concat(topic.Observations ?? []).Concat(topic.Factors ?? []).Concat(topic.Actions ?? [])
-                    .Max(t => ItemGrounding.LongestVerbatimRun(t, topic.RawSource));
+                var copied = TopicHelpers.CopiedWords(topic, topic.RawSource);
                 if (copied >= VerbatimWarnWords)
                 {
-                    var msg = $"{topic.Name}: {copied} consecutive words follow the source verbatim — reword";
+                    var msg = $"{topic.Name}: {copied} consecutive words follow the copyrighted encyclopedia text verbatim — reword";
                     warnings.Add(msg);
                     factualWarnings.Add(msg);
                     _logger.LogWarning("Data integrity [WARN] {Message}", msg);

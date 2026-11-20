@@ -5,7 +5,7 @@ namespace Meducate.Tests;
 
 public class TopicRegressionTests
 {
-    private const string Source = "Do not start CPR unless the seizure has clearly stopped and the person is not breathing or has no pulse. " +
+    private const string Source = "[Encyclopedia Article: Seizure] Do not start CPR unless the seizure has clearly stopped and the person is not breathing or has no pulse. " +
         "Symptoms include fever, chills, pain, swelling, redness and a rash on the skin around the area that is affected.";
 
     private static HealthTopic Stored() => new()
@@ -97,5 +97,15 @@ public class TopicRegressionTests
         stored.Actions = ["Do not start CPR unless the seizure has clearly stopped and the person is not breathing or has no pulse", "Rest"];
 
         Assert.False(TopicHelpers.IsRegression(stored, Fresh(t => t.Actions = stored.Actions), Source));
+    }
+
+    [Fact]
+    public void LongWordingFromPublicDomainTopicText_IsNotARegression()
+    {
+        // MedlinePlus's own topic summary is public domain; only encyclopedia text is guarded.
+        const string nlmOnly = "[MedlinePlus] [Source: NIH] Do not start CPR unless the seizure has clearly stopped and the person is not breathing or has no pulse. More text follows here.";
+        var copied = Fresh(t => t.Actions = ["Do not start CPR unless the seizure has clearly stopped and the person is not breathing or has no pulse", "Rest"]);
+
+        Assert.False(TopicHelpers.IsRegression(Stored(), copied, nlmOnly));
     }
 }

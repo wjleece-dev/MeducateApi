@@ -136,11 +136,18 @@ internal static class TopicHelpers
             .SelectMany(l => l ?? [])
             .Count(i => i.Count(c => c == ',') >= MergedBulletCommas);
 
-    internal static int CopiedWords(HealthTopic t, string rawSource) =>
-        new[] { t.Summary }.Concat(t.Observations ?? []).Concat(t.Factors ?? []).Concat(t.Actions ?? [])
+    internal static int CopiedWords(HealthTopic t, string rawSource)
+    {
+        // Only encyclopedia text matters: it is copyrighted, unlike MedlinePlus's own topic summaries.
+        var copyrighted = ItemGrounding.CopyrightedText(rawSource);
+        if (copyrighted.Length == 0)
+            return 0;
+
+        return new[] { t.Summary }.Concat(t.Observations ?? []).Concat(t.Factors ?? []).Concat(t.Actions ?? [])
             .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Select(s => ItemGrounding.LongestVerbatimRun(s!, rawSource))
+            .Select(s => ItemGrounding.LongestVerbatimRun(s!, copyrighted))
             .DefaultIfEmpty(0).Max();
+    }
 
     // Quality issues the verifier can repair (content problems), as opposed to an empty or missing extraction.
     internal static bool IsVerifiable(string? qualityIssue) =>

@@ -194,6 +194,17 @@ internal static partial class ItemGrounding
         return evidence;
     }
 
+    // The parts of the source that are not public-domain NLM text: the A.D.A.M. encyclopedia articles and patient
+    // instructions. Copying a long run of NLM's own summary is fine; copying these closely is what we avoid.
+    internal static string CopyrightedText(string? rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText))
+            return "";
+
+        return string.Join("\n", SectionStart().Split(rawText)
+            .Where(p => p.StartsWith("[Encyclopedia Article", StringComparison.Ordinal) || p.StartsWith("[Patient Instructions", StringComparison.Ordinal)));
+    }
+
     private static ItemJudgement? Supporting(IReadOnlyList<ItemJudgement>? judgements, string field, string item) =>
         judgements?.FirstOrDefault(j => j.Supported && j.Field == field && string.Equals(j.Item, item, StringComparison.OrdinalIgnoreCase));
 

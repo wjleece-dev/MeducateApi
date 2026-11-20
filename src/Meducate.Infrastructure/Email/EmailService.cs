@@ -232,7 +232,7 @@ internal sealed class EmailService(IResend resend, IMemoryCache cache, ILogger<E
             : "  - No details available";
 
         var body = $"""
-            <p>The nightly data integrity check found <strong>{failureCount} failure(s)</strong> and {warningCount} warning(s) in the topic dataset.</p>
+            <p>The nightly data integrity check found <strong>{failureCount} failure(s)</strong> and {warningCount} warning(s) in the topic dataset. Failures mean broken data; warnings marked CHECK are content that may be wrong or copied, and nothing is down.</p>
 
             <ul>
                 <li>Batch checked: {batchIndex + 1} of {totalBatches} ({batchChecked} topics)</li>
@@ -261,7 +261,10 @@ internal sealed class EmailService(IResend resend, IMemoryCache cache, ILogger<E
             Check the Hangfire dashboard for the full job log.
             """;
 
-        return SendAsync(email, $"MeducateAPI: data integrity check failed ({failureCount} issue(s))", body, plainText,
+        var subject = failureCount > 0
+            ? $"MeducateAPI: data integrity check failed ({failureCount} issue(s))"
+            : $"MeducateAPI: data integrity check passed, {warningCount} content warning(s) to review";
+        return SendAsync(email, subject, body, plainText,
             $"data integrity alert to {MaskEmail(email)}");
     }
 
