@@ -43,7 +43,7 @@ Four of the 30 topics (13%) had at least one sampled item that was not fully sup
 
 ## Follow-up: a full pass over every topic
 
-After the audit, every topic was re-checked (872 topics, 16,155 list items). The check proposed 205 removals. Each proposal was read against its source, and only the ones the source clearly does not state were applied: **23 items** (for example four unsupported risk factors on Gallbladder Cancer, and four on Mood Disorder, two of which described autism). The other 182 were wrongly flagged, so they were left alone.
+After the audit, every topic was re-checked (872 topics, 16,155 list items). The check proposed 205 removals. Each proposal was read against its source, and only the ones the source clearly does not state were applied: **23 items** (for example four unsupported risk factors on Gallbladder Cancer, and four on Mood Disorder, two of which described autism). The other 182 were left alone: 80 of them appear in their source word for word, and the rest were read or spot-checked against it and are stated there.
 
 That result also showed that a second, stricter model check I had added was wrong far more often than right (10 correct out of 184 proposals), so it was removed. Reading the proposals is slow work. It is why the pipeline removes an item only when two signals agree, and why a person still has to look before anything is changed in bulk.
 
