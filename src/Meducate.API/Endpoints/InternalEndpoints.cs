@@ -211,7 +211,7 @@ internal static class InternalEndpoints
                     // Keep the topic page, and only the encyclopedia articles whose heading is in the stored source text.
                     var raw = topic.RawSource ?? "";
                     var links = found
-                        .Where(l => l.Title == "MedlinePlus topic page" || raw.Contains($": {l.Title}]", StringComparison.Ordinal))
+                        .Where(l => l.Title is "MedlinePlus topic page" or "MedlinePlus definition source" || raw.Contains($": {l.Title}]", StringComparison.Ordinal))
                         .DistinctBy(l => l.Url)
                         .ToList();
                     if (links.Count == 0)

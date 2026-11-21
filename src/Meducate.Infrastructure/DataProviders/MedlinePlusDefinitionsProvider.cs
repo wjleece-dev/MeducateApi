@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using Meducate.Application.Helpers;
+using Meducate.Domain.Entities;
 using Meducate.Domain.Services;
 using Microsoft.Extensions.Logging;
 
@@ -28,6 +29,17 @@ internal sealed class MedlinePlusDefinitionsProvider(HttpClient httpClient, ILog
     internal sealed record ParsedTerm(string Term, string Definition, string? Reference, string? ReferenceUrl);
 
     public string SourceName => "MedlinePlus Definitions";
+
+    public async Task<IReadOnlyList<SourceLink>> GetSourceLinksAsync(string topicName, CancellationToken ct = default)
+    {
+        var terms = await GetOrLoadTermsAsync(ct);
+        var match = terms.FirstOrDefault(t => string.Equals(t.Term, topicName, StringComparison.OrdinalIgnoreCase));
+        return match is null ? [] : LinksFor(match);
+    }
+
+    // Definitions come from a dictionary entry that names its own reference page.
+    private static List<SourceLink> LinksFor(ParsedTerm term) =>
+        string.IsNullOrWhiteSpace(term.ReferenceUrl) ? [] : [new SourceLink("MedlinePlus definition source", term.ReferenceUrl.Trim())];
 
     public async Task<RawTopicData?> FetchTopicDataAsync(string topicName, CancellationToken ct = default)
     {
@@ -86,7 +98,7 @@ internal sealed class MedlinePlusDefinitionsProvider(HttpClient httpClient, ILog
             ? term.Definition
             : $"[Source: {term.Reference.Trim()}]\n{term.Definition}";
 
-        return new RawTopicData(term.Term, text, "MedlinePlus", ContentHash: ContentHasher.ComputeHash(text));
+        return new RawTopicData(term.Term, text, "MedlinePlus", ContentHash: ContentHasher.ComputeHash(text), Links: LinksFor(term));
     }
 
     private async Task<List<ParsedTerm>> GetOrLoadTermsAsync(CancellationToken ct)
