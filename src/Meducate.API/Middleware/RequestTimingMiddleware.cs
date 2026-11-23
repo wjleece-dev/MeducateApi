@@ -18,7 +18,7 @@ internal sealed class RequestTimingMiddleware(RequestDelegate next, ILogger<Requ
         _logger.LogInformation(
             "{Method} {Path} responded {StatusCode} in {ElapsedMs:F1}ms",
             context.Request.Method,
-            context.Request.Path,
+            context.Request.Path.Value?.Replace("\r", "").Replace("\n", ""), // a decoded path can carry CR/LF (%0A); keep one request on one log line
             context.Response.StatusCode,
             elapsed.TotalMilliseconds);
     }

@@ -22,7 +22,7 @@ internal sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Gl
         {
             var traceId = context.Items.TryGetValue("CorrelationId", out var cid) ? cid as string : null;
             _logger.LogError(ex, "Unhandled exception on {Method} {Path} [TraceId: {TraceId}]",
-                context.Request.Method, context.Request.Path, traceId);
+                context.Request.Method, context.Request.Path.Value?.Replace("\r", "").Replace("\n", ""), traceId);
 
             await ProblemResponse.WriteAsync(context, StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
         }
