@@ -57,7 +57,7 @@ internal sealed class PubMedDataProvider(
         url = AppendApiKey(url);
 
         await Task.Delay(ThrottleDelay, ct);
-        var response = await _httpClient.GetStringAsync(url, ct);
+        var response = await GetWithRetryAsync(url, ct);
 
         _logger.LogInformation("PubMed: ESearch response length: {Length} chars", response.Length);
 
@@ -102,7 +102,7 @@ internal sealed class PubMedDataProvider(
         _logger.LogInformation("PubMed: fetching abstracts for {Count} articles", ids.Count);
 
         await Task.Delay(ThrottleDelay, ct);
-        var xml = await _httpClient.GetStringAsync(url, ct);
+        var xml = await GetWithRetryAsync(url, ct);
 
         _logger.LogInformation("PubMed: EFetch abstract response length: {Length} chars", xml.Length);
 
@@ -121,6 +121,21 @@ internal sealed class PubMedDataProvider(
             .Select(e => e.Value)
             .Where(t => !string.IsNullOrWhiteSpace(t))
             .ToList();
+    }
+
+    // Without an API key NCBI allows about 3 requests a second, so parallel refreshes get 429s.
+    // One pause-and-retry keeps a busy moment from dropping the PubMed source for a topic.
+    private async Task<string> GetWithRetryAsync(string url, CancellationToken ct)
+    {
+        try
+        {
+            return await _httpClient.GetStringAsync(url, ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            return await _httpClient.GetStringAsync(url, ct);
+        }
     }
 
     internal string AppendApiKey(string url)

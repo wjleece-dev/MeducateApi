@@ -38,11 +38,12 @@ internal sealed class ETagMiddleware(RequestDelegate next)
             context.Response.Headers.ETag = etag;
             context.Response.Headers.CacheControl = "no-cache";
 
-            if (context.Request.Headers.IfNoneMatch == etag)
+            if (Matches(context.Request.Headers.IfNoneMatch, etag))
             {
+                // Nothing has been written to the real stream yet (the body is in the buffer), so there is
+                // nothing to truncate; compression wraps that stream and does not support SetLength.
                 context.Response.StatusCode = StatusCodes.Status304NotModified;
-                context.Response.ContentLength = 0;
-                originalBody.SetLength(0);
+                context.Response.ContentLength = null;
                 context.Response.Body = originalBody;
                 return;
             }
@@ -52,4 +53,9 @@ internal sealed class ETagMiddleware(RequestDelegate next)
         await buffer.CopyToAsync(originalBody);
         context.Response.Body = originalBody;
     }
+
+    // Weak comparison (RFC 9110): proxies and compression turn "x" into W/"x", and clients echo that back.
+    private static bool Matches(Microsoft.Extensions.Primitives.StringValues header, string etag) =>
+        header.SelectMany(v => v!.Split(',', StringSplitOptions.TrimEntries))
+            .Any(t => t == "*" || (t.StartsWith("W/", StringComparison.Ordinal) ? t[2..] : t) == etag);
 }

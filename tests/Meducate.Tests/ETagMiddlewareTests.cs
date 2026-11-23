@@ -86,6 +86,34 @@ public class ETagMiddlewareTests
         Assert.Equal(StatusCodes.Status304NotModified, context.Response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("W/")]
+    [InlineData("")]
+    public async Task IfNoneMatch_MatchesStrongOrWeakFormOfTheEtag(string prefix)
+    {
+        var body = Encoding.UTF8.GetBytes("{\"name\":\"test\"}");
+        var first = new DefaultHttpContext();
+        first.Request.Path = "/api/v1/topics";
+        first.Response.Body = new MemoryStream();
+        await new ETagMiddleware(ctx => ctx.Response.Body.WriteAsync(body).AsTask()).InvokeAsync(first);
+        var etag = first.Response.Headers.ETag.ToString();
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/api/v1/topics";
+        context.Request.Headers.IfNoneMatch = $"\"other\", {prefix}{etag}";
+        // Compression wraps the real stream and throws on SetLength; the 304 path must not touch it.
+        context.Response.Body = new NoSetLengthStream();
+
+        await new ETagMiddleware(ctx => ctx.Response.Body.WriteAsync(body).AsTask()).InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status304NotModified, context.Response.StatusCode);
+    }
+
+    private sealed class NoSetLengthStream : MemoryStream
+    {
+        public override void SetLength(long value) => throw new NotSupportedException();
+    }
+
     [Fact]
     public async Task NonMatchingIfNoneMatch_ReturnsFullResponse()
     {

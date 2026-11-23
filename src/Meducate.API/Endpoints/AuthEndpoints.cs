@@ -31,7 +31,7 @@ internal static class AuthEndpoints
             // Honeypot: reject if hidden field was filled (bots fill all fields)
             if (!string.IsNullOrEmpty(request.Website))
             {
-                logger.LogWarning("Bot detected: honeypot field filled for {Email}", request.Email);
+                logger.LogWarning("Bot detected: honeypot field filled");
                 return Results.Ok(new { message = "If an account exists for this email, we\u2019ve sent a verification link." });
             }
 
@@ -40,7 +40,7 @@ internal static class AuthEndpoints
                 && long.TryParse(request.Timestamp, out var renderTicks)
                 && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - renderTicks < 2000)
             {
-                logger.LogWarning("Bot detected: form submitted too quickly for {Email}", request.Email);
+                logger.LogWarning("Bot detected: form submitted too quickly");
                 return Results.Ok(new { message = "If an account exists for this email, we\u2019ve sent a verification link." });
             }
 
