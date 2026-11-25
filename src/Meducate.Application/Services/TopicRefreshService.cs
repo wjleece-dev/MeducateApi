@@ -103,6 +103,17 @@ internal sealed class TopicRefreshService(
                 continue;
             }
 
+            // A PubMed fetch that failed (rate limit, timeout) looks the same as "no articles". Replacing the stored
+            // source with a MedlinePlus-only one would strip the text the lists were built from, so keep what we
+            // have and try again on the next run.
+            if (topic.RawSource?.Contains("[PubMed]", StringComparison.Ordinal) == true
+                && !results.Any(r => r.SourceName == "PubMed"))
+            {
+                _logger.LogWarning("PubMed returned nothing for '{Name}', which already has PubMed text stored - keeping the stored source and retrying next run",
+                    topic.Name);
+                continue;
+            }
+
             var newRawSource = TopicHelpers.BuildMergedRawSource(results);
 
             var newHash = ContentHasher.GetSourceHash(results, newRawSource);

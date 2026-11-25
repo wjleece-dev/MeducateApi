@@ -49,6 +49,23 @@ public class TopicRefreshServiceTests
     }
 
     [Fact]
+    public async Task RefreshAllAsync_KeepsStoredSource_WhenPubMedReturnsNothingForATopicThatHasPubMedText()
+    {
+        var stored = "[MedlinePlus]\nshort stub\n---\n[PubMed]\n" + new string('p', 400);
+        var topic = new HealthTopic { Name = "Topic A", RawSource = stored, SourceHash = "old-hash" };
+        var medline = new FakeProvider("MedlinePlus", name => new RawTopicData(name, "short stub", "MedlinePlus"));
+        var pubmed = new FakeProvider("PubMed", _ => null);
+        var queryRepo = new FakeQueryRepo { NeedingRefresh = [topic] };
+        var service = BuildService([medline, pubmed], queryRepo, new FakeWriteRepo(), new FakeLlmProcessor());
+
+        await service.RefreshAllAsync();
+
+        Assert.Equal(stored, topic.RawSource);
+        Assert.Equal("old-hash", topic.SourceHash);
+        Assert.False(topic.NeedsLlmReprocessing);
+    }
+
+    [Fact]
     public async Task RefreshAllAsync_Reprocess_SuccessClearsFlag_AndIncrementsVersion()
     {
         var topic = new HealthTopic { Name = "Topic A", RawSource = new string('x', 200), NeedsLlmReprocessing = true, Version = 1 };
